@@ -8,7 +8,13 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+
+	"github.com/aquilax/go-perlin"
 )
+
+// import
+// p := perlin.NewAlpha(beta, nOctaves, seed) // Пример: perlin.NewPerlin(2, 2, 3, 42)
+// value := p.Noise2D(x, y)
 
 const (
 	screenWidth  = 640
@@ -66,8 +72,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Отрисовываем точки
 	for _, p := range g.points {
 		// Рисуем каждую точку как маленький квадрат
-		for offsetY := 0; offsetY < pointSize; offsetY++ {
-			for offsetX := 0; offsetX < pointSize; offsetX++ {
+		for offsetY := range pointSize {
+			for offsetX := range pointSize {
 				screen.Set(int(p.X)+offsetX, int(p.Y)+offsetY, color.RGBA{255, 255, 255, 255})
 			}
 		}
@@ -80,6 +86,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func main() {
+	_ = perlin.NewPerlin
+
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Случайные точки (нажмите пробел для обновления)")
 
