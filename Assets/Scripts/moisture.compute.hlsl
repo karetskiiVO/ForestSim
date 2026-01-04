@@ -1,0 +1,63 @@
+#pragma kernel RelaxMoisture
+
+Texture2D<float> heighmap : register(t0);
+Texture2D<float2> GradientTex : register(t1);
+RWTexture2D<float> Moisture : register(u0);
+RWTexture2D<float> MoistureBuf : register(u1);
+
+cbuffer RelaxParams : register(b1)
+{
+    float dt;           // шаг времени (0.01-0.1)
+    float flowSpeed;    // скорость потока (1.0-10.0)
+    uint iteration;     // номер итерации
+    float maxMoisture;  // максимальная ёмкость (1.0)
+}
+
+cbuffer TerrainDataBuffer : register(b0)
+{
+    float2 size;
+    uint2 resolution;
+}
+
+static const float2 dirs[4] = { float2(-1,0), float2(1,0), float2(0,-1), float2(0,1) };
+
+[numthreads(8,8,1)]
+void RelaxMoisture(uint3 uv : SV_DispatchThreadID)
+{
+    if (uv.x >= resolution.x || uv.y >= resolution.y) return;
+    
+    float2 pos = float2(uv.xy);
+    float h = heighmap[pos];
+    float2 grad = GradientTex[pos];
+    float currentMoisture = Moisture[pos];
+    
+    float inflow = 0.0f;
+    float outflow = 0.0f;
+    
+    // По градиентному полю определяем соседей
+    for(int i = 0; i < 4; i++)
+    {
+        float2 dir = dirs[i];
+        float2 nPos = pos + dir;
+        
+        if (nPos.x < 0 || nPos.x >= resolution.x || nPos.y < 0 || nPos.y >= resolution.y) 
+            continue;
+            
+        float nh = heighmap[nPos];
+        float nMoisture = Moisture[nPos];
+        
+        // Потенциал = height + moisture_pressure
+        float potential = h + currentMoisture * 0.1;
+        float nPotential = nh + nMoisture * 0.1;
+        
+        // Течёт от высокого потенциала к низкому
+        if (potential > nPotential)
+            outflow += (potential - nPotential) * flowSpeed * dt;
+        else if (nPotential > potential)
+            inflow += (nPotential - potential) * flowSpeed * dt;
+    }
+    
+    // Обновление с ограничением ёмкости
+    float newMoisture = saturate(currentMoisture + inflow - outflow);
+    MoistureBuf[pos] = lerp(currentMoisture, newMoisture, 0.5); // сглаживание
+}
