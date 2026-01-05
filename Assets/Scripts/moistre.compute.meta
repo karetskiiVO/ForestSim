@@ -1,6 +1,6 @@
 fileFormatVersion: 2
-guid: bfefe20b0be582a498ad4c9eb70ca9db
-ShaderIncludeImporter:
+guid: e25abec87c6ae9b4dbd1905609f02aee
+ComputeShaderImporter:
   externalObjects: {}
   userData: 
   assetBundleName: 

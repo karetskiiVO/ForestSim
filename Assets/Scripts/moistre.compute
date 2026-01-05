@@ -5,28 +5,33 @@ Texture2D<float2> GradientTex : register(t1);
 RWTexture2D<float> Moisture : register(u0);
 RWTexture2D<float> MoistureBuf : register(u1);
 
-cbuffer RelaxParams : register(b1)
-{
-    float dt;           // шаг времени (0.01-0.1)
-    float flowSpeed;    // скорость потока (1.0-10.0)
-    uint iteration;     // номер итерации
-    float maxMoisture;  // максимальная ёмкость (1.0)
-}
+float dt;           // шаг времени (0.01-0.1)
+float flowSpeed;    // скорость потока (1.0-10.0)
+uint iteration;     // номер итерации
+float maxMoisture;  // максимальная ёмкость (1.0)
+bool copyMode;
+float2 size;
+uint2 resolution;
 
-cbuffer TerrainDataBuffer : register(b0)
-{
-    float2 size;
-    uint2 resolution;
-}
+static const int2 dirs[4] = { int2(-1,0), int2(1,0), int2(0,-1), int2(0,1) };
 
-static const float2 dirs[4] = { float2(-1,0), float2(1,0), float2(0,-1), float2(0,1) };
+void simulate(int2 uv);
+void copy(int2 uv);
 
 [numthreads(8,8,1)]
 void RelaxMoisture(uint3 uv : SV_DispatchThreadID)
 {
     if (uv.x >= resolution.x || uv.y >= resolution.y) return;
-    
-    float2 pos = float2(uv.xy);
+
+    if (!copyMode) {
+        simulate(uv.xy);
+    } else {
+        copy(uv.xy);
+    }
+}
+
+void simulate(int2 uv) {
+    int2 pos = uv.xy;
     float h = heighmap[pos];
     float2 grad = GradientTex[pos];
     float currentMoisture = Moisture[pos];
@@ -37,8 +42,8 @@ void RelaxMoisture(uint3 uv : SV_DispatchThreadID)
     // По градиентному полю определяем соседей
     for(int i = 0; i < 4; i++)
     {
-        float2 dir = dirs[i];
-        float2 nPos = pos + dir;
+        int2 dir = dirs[i];
+        int2 nPos = pos + dir;
         
         if (nPos.x < 0 || nPos.x >= resolution.x || nPos.y < 0 || nPos.y >= resolution.y) 
             continue;
@@ -59,5 +64,10 @@ void RelaxMoisture(uint3 uv : SV_DispatchThreadID)
     
     // Обновление с ограничением ёмкости
     float newMoisture = saturate(currentMoisture + inflow - outflow);
-    MoistureBuf[pos] = lerp(currentMoisture, newMoisture, 0.5); // сглаживание
+    MoistureBuf[pos] = newMoisture;
+}
+
+static const float heights[9] = {0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
+void copy(int2 uv) {
+    Moisture[uv] = MoistureBuf[uv];
 }

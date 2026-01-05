@@ -27,17 +27,23 @@ class MapGenerator : MonoBehaviour
     [SerializeField]
     ComputeShader moistureShader, initShader;
 
-    int iterations = 0; // количество шагов релаксации
-    float dt = 0.05f;
+    [SerializeField]
+    int iterations = 10; // количество шагов релаксации
+    [SerializeField]
+    float dt = 1f;
 
     [Sirenix.OdinInspector.Button]
-    void CreateNoise() {
+    void Generate() {
         var random = seed == ""
             ? new System.Random() 
             : new System.Random(seed.GetHashCode());
 
-        // init perm
         var map = CreateMap(random);        
+        var heighs = Enumerable.Range(0, map.GetLength(0))
+            .SelectMany(i => Enumerable.Range(0, map.GetLength(1))
+            .Select(j => map[i, j]));
+
+        Debug.Log($"min: {heighs.Min()} max: {heighs.Max()}");
 
         terrain.terrainData.SetHeights(0, 0, map);
 
@@ -54,12 +60,18 @@ class MapGenerator : MonoBehaviour
             filterMode = FilterMode.Point,
         };
         moistureRTexture.Create();
+        Graphics.SetRenderTarget(moistureRTexture);
+        GL.Clear(true, true, Color.black); // Очищаем черным (0)
+        Graphics.SetRenderTarget(null);
         var moistureBufRTexture = new RenderTexture(resolution.x, resolution.y, 0, RenderTextureFormat.RFloat)
         {
             enableRandomWrite = true,
             filterMode = FilterMode.Point,
         };
         moistureBufRTexture.Create();
+        Graphics.SetRenderTarget(moistureBufRTexture);
+        GL.Clear(true, true, Color.black); // Очищаем черным (0)
+        Graphics.SetRenderTarget(null);
 
         gradShader.SetVector("size", new Vector4(1, 1, 0, 0)); // Change to normal size
         gradShader.SetInts("resolution", resolution.x, resolution.y);
@@ -96,31 +108,32 @@ class MapGenerator : MonoBehaviour
         initShader.SetInts("resolution", resolution.x, resolution.y); // важно!
         initShader.Dispatch(initKernel, gx, gy, 1);
 
-        /*
+        var moistureKernel = moistureShader.FindKernel("RelaxMoisture");
+        moistureShader.SetTexture(moistureKernel, "heighmap", heighmapTextured);
+        moistureShader.SetTexture(moistureKernel, "GradientTex", gradsRTexture);
+        moistureShader.SetTexture(moistureKernel, "Moisture", moistureRTexture);
+        moistureShader.SetTexture(moistureKernel, "MoistureBuf", moistureBufRTexture);
+        
         for(int i = 0; i < iterations; i++)
         {
-            Debug.Log("aboba");
-
-            var moistureKernel = moistureShader.FindKernel("RelaxMoisture");
-            moistureShader.SetTexture(moistureKernel, "heighmap", heighmapTextured);
-            moistureShader.SetTexture(moistureKernel, "GradientTex", gradsRTexture);
-            moistureShader.SetTexture(moistureKernel, "Moisture", moistureRTexture);
-            moistureShader.SetTexture(moistureKernel, "MoistureBuf", moistureBufRTexture);
-
+            moistureShader.SetVector("size", new Vector2(1, 1));
+            moistureShader.SetVector("resolution", new Vector2(resolution.x, resolution.y));
             moistureShader.SetFloat("dt", dt);
             moistureShader.SetFloat("flowSpeed", 5.0f);
-            moistureShader.SetInt("iteration", i);
+            moistureShader.SetInt("iteration", 0);
+            moistureShader.SetFloat("maxMoisture", 1.0f);
+            moistureShader.SetBool("copyMode", false);
             moistureShader.Dispatch(moistureKernel, gx, gy, 1);
 
-            var cmd = new CommandBuffer
-            {
-                name = "Copy RenderTexture"
-            };
-            cmd.Blit(moistureBufRTexture, moistureRTexture);
-            Graphics.ExecuteCommandBuffer(cmd);
-            cmd.Dispose();
+            moistureShader.SetVector("size", new Vector2(1, 1));
+            moistureShader.SetVector("resolution", new Vector2(resolution.x, resolution.y));
+            moistureShader.SetFloat("dt", dt);
+            moistureShader.SetFloat("flowSpeed", 5.0f);
+            moistureShader.SetInt("iteration", 0);
+            moistureShader.SetFloat("maxMoisture", 1.0f);
+            moistureShader.SetBool("copyMode", true);
+            moistureShader.Dispatch(moistureKernel, gx, gy, 1);
         }
-        */
 
         RenderTexture.active = moistureRTexture;
         var wetRaw = new Texture2D(moistureRTexture.width, moistureRTexture.height, TextureFormat.RFloat, false);
@@ -152,14 +165,21 @@ class MapGenerator : MonoBehaviour
             })
             .ToArray();
 
-        var wet = new Texture2D(moistureRTexture.width, moistureRTexture.height);
+        var wet = new Texture2D(moistureRTexture.width, moistureRTexture.height)
+        {
+            wrapMode = TextureWrapMode.Clamp
+        };
         wet.SetPixels(colors);
         wet.Apply(true, false); // true = перезаписать исходные данные
-
+        
+        // пока костыль, но пусть будет
+        wet = TextureFlip.FlipHorizontal(wet);
+        wet = TextureFlip.RotateTexture90CounterClockwise(wet);
+    
         TerrainLayer moistureLayer = new TerrainLayer();
         moistureLayer.diffuseTexture = wet;  // ваша готовая текстура!
         moistureLayer.normalMapTexture = null;
-        //moistureLayer.tileSize = terrain.terrainData.size;
+        moistureLayer.tileSize = new Vector2(terrain.terrainData.size.x, terrain.terrainData.size.z);
         //moistureLayer.tileSize = new Vector3(1f, 0f, 1f);
 
         terrain.terrainData.terrainLayers = new TerrainLayer[] { moistureLayer };
@@ -196,6 +216,22 @@ class MapGenerator : MonoBehaviour
         for (var x = 0; x < resolution.x; x++) {
             for (var y = 0; y < resolution.y; y++) {
                 var val = FractalNoise(new Vector2(x, y) * scale, perm);
+
+                map[x, y] = val;
+            }
+        }
+
+        return map;
+    }
+
+    float[,] TestCone() {
+        var map = new float[resolution.x, resolution.y];
+
+        for (var x = 0; x < resolution.x; x++) {
+            for (var y = 0; y < resolution.y; y++) {
+                var norm = Mathf.Max(resolution.x, resolution.y) / 2;
+
+                var val = 1 - Mathf.Max(0.5f*resolution.x - x, 0.5f*resolution.y - y)/norm;
 
                 map[x, y] = val;
             }
@@ -260,5 +296,150 @@ class MapGenerator : MonoBehaviour
         float y2 = lerp(v, x1, x2);
 
         return (lerp(w, y1, y2) + 1) / 2;
+    }
+
+    public static class TextureFlip
+    {
+        // Зеркальное отражение по горизонтали
+        public static Texture2D FlipHorizontal(Texture2D original)
+        {
+            int width = original.width;
+            int height = original.height;
+            
+            Texture2D flipped = new Texture2D(width, height);
+            
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    // Берем пиксель из оригинальной позиции
+                    Color pixel = original.GetPixel(x, y);
+                    // Помещаем в зеркальную позицию по X
+                    flipped.SetPixel(width - 1 - x, y, pixel);
+                }
+            }
+            
+            flipped.Apply();
+            return flipped;
+        }
+
+        public static Texture2D FlipVertical(Texture2D original)
+        {
+            int width = original.width;
+            int height = original.height;
+            
+            Texture2D flipped = new Texture2D(width, height);
+            
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    Color pixel = original.GetPixel(x, y);
+                    // Помещаем в зеркальную позицию по Y
+                    flipped.SetPixel(x, height - 1 - y, pixel);
+                }
+            }
+            
+            flipped.Apply();
+            return flipped;
+        }
+
+        public static Texture2D FlipBoth(Texture2D original)
+        {
+            int width = original.width;
+            int height = original.height;
+            
+            Texture2D flipped = new Texture2D(width, height);
+            
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    Color pixel = original.GetPixel(x, y);
+                    // Отражаем и по X и по Y
+                    flipped.SetPixel(width - 1 - x, height - 1 - y, pixel);
+                }
+            }
+            
+            flipped.Apply();
+            return flipped;
+        }
+    
+        public static Texture2D RotateTexture90Clockwise(Texture2D originalTexture)
+        {
+            Color32[] original = originalTexture.GetPixels32();
+            Color32[] rotated = new Color32[original.Length];
+            
+            int width = originalTexture.width;
+            int height = originalTexture.height;
+            
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    int originalIndex = x + y * width;
+                    int rotatedIndex = (height - 1 - y) + x * height;
+                    rotated[rotatedIndex] = original[originalIndex];
+                }
+            }
+            
+            Texture2D rotatedTexture = new Texture2D(height, width);
+            rotatedTexture.SetPixels32(rotated);
+            rotatedTexture.Apply();
+            
+            return rotatedTexture;
+        }
+
+        // Поворот на 90 градусов против часовой стрелки
+        public static Texture2D RotateTexture90CounterClockwise(Texture2D originalTexture)
+        {
+            Color32[] original = originalTexture.GetPixels32();
+            Color32[] rotated = new Color32[original.Length];
+            
+            int width = originalTexture.width;
+            int height = originalTexture.height;
+            
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    int originalIndex = x + y * width;
+                    int rotatedIndex = y + (width - 1 - x) * height;
+                    rotated[rotatedIndex] = original[originalIndex];
+                }
+            }
+            
+            Texture2D rotatedTexture = new Texture2D(height, width);
+            rotatedTexture.SetPixels32(rotated);
+            rotatedTexture.Apply();
+            
+            return rotatedTexture;
+        }
+
+        // Поворот на 180 градусов
+        public static Texture2D RotateTexture180(Texture2D originalTexture)
+        {
+            Color32[] original = originalTexture.GetPixels32();
+            Color32[] rotated = new Color32[original.Length];
+            
+            int width = originalTexture.width;
+            int height = originalTexture.height;
+            
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    int originalIndex = x + y * width;
+                    int rotatedIndex = (width - 1 - x) + (height - 1 - y) * width;
+                    rotated[rotatedIndex] = original[originalIndex];
+                }
+            }
+            
+            Texture2D rotatedTexture = new Texture2D(width, height);
+            rotatedTexture.SetPixels32(rotated);
+            rotatedTexture.Apply();
+            
+            return rotatedTexture;
+        }
     }
 }
