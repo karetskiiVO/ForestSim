@@ -160,7 +160,7 @@ MonoBehaviour:
   gradShader: {fileID: 7200000, guid: c93b5e6e46febb64891272b54eb77200, type: 3}
   moistureShader: {fileID: 7200000, guid: e25abec87c6ae9b4dbd1905609f02aee, type: 3}
   initShader: {fileID: 7200000, guid: a0bf707c34a6c9e4f93d26046be7fe57, type: 3}
-  iterations: 100
+  iterations: 1000
   dt: 0.5
 --- !u!4 &356160191
 Transform:
