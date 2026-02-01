@@ -161,7 +161,7 @@ MonoBehaviour:
   moistureShader: {fileID: 7200000, guid: e25abec87c6ae9b4dbd1905609f02aee, type: 3}
   initShader: {fileID: 7200000, guid: a0bf707c34a6c9e4f93d26046be7fe57, type: 3}
   lightmapShader: {fileID: 7200000, guid: a1a4e65732f93114f970d5a111a445a1, type: 3}
-  iterations: 1000
+  iterations: 2000
   dt: 0.5
   sunDirection: {x: 1, y: 1, z: 0}
 --- !u!4 &356160191

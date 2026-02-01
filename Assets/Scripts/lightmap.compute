@@ -1,33 +1,50 @@
 #pragma kernel Lightmap
 
-Texture2D<float> heighmap;
-RWTexture2D<float> lightmap;
+RWTexture2D<float> lightmap : register(u0);
+Texture2D<float> heighmap : register(t0);
+SamplerState sampler_heighmap : register(s0);
 
-float3 sunDirection;
-uint2 resolution;
-float2 size;
+cbuffer Uniforms : register(b0)
+{
+    float2 resolution;
+    float3 sunDirection;
+    float2 size;
+};
+
+static const float stepSize = 0.01f;
+static const int maxSteps = 512;
 
 [numthreads(8,8,1)]
-void Lightmap(uint3 uv : SV_DispatchThreadID) {
-    if (uv.x >= resolution.x || uv.y >= resolution.y) return;
+void Lightmap (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)resolution.x || id.y >= (uint)resolution.y) return;
 
-    float3 pos = float3(uv.x * size.x, uv.y * size.y, heighmap[uv.xy]);
+    float2 uv = float2(id.xy) / resolution;
+    float2 pixelSize = size / resolution;
 
-    float3 step = normalize(sunDirection.xzy) * min(size.x, size.y) * 0.5;
-    uint maxSteps = (uint)(sqrt((float)(resolution.x * resolution.x + resolution.y * resolution.y)) * 2.0f);
-    for (uint i = 1; i < maxSteps; i++) {
-        float3 tracedPos = pos + i * step;
+    float3 worldPos = float3(uv * size - size * 0.5f, heighmap.SampleLevel(sampler_heighmap, uv, 0).r);
 
-        uint2 tracedUV = (uint2)(tracedPos.xy / size);
+    bool inShadow = false;
+    float3 rayPos = worldPos;
+    float3 rayDir = normalize(sunDirection.xzy);
 
-        if (tracedUV.x >= resolution.x || tracedUV.y >= resolution.y || tracedUV.x < 0 || tracedUV.y < 0) break;
+    [loop]
+    for(int i = 0; i < maxSteps; i++)
+    {
+        rayPos += rayDir * stepSize;
 
-        if (heighmap[tracedUV] > tracedPos.z + 0.1f) {
-            lightmap[uv.xy] = 0.f;
-            return;
+        float2 rayUV = (rayPos.xy + size * 0.5f) / size;
+
+        if (rayUV.x < 0.0f || rayUV.x > 1.0f || rayUV.y < 0.0f || rayUV.y > 1.0f) break;
+
+        float terrainHeight = heighmap.SampleLevel(sampler_heighmap, rayUV, 0).r;
+
+        if (rayPos.z < terrainHeight)
+        {
+            inShadow = true;
+            break;
         }
     }
 
-    lightmap[uv.xy] = 1.f; // Если дошли сюда, то пиксель освещён
+    lightmap[id.xy] = inShadow ? 0.0f : 1.0f;
 }
-

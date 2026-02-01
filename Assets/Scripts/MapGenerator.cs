@@ -86,7 +86,7 @@ class MapGenerator : MonoBehaviour
             alphaKeys[0] = new GradientAlphaKey(1.0f, 0.0f);
             alphaKeys[1] = new GradientAlphaKey(1.0f, 1.0f);
 
-            wetGradient.SetKeys(colorKeys, alphaKeys);
+            lightGradient.SetKeys(colorKeys, alphaKeys);
         }
         var lightMapper = new Func<float, Color>(val => lightGradient.Evaluate(Mathf.Clamp01(val)));
 
@@ -116,9 +116,9 @@ class MapGenerator : MonoBehaviour
 
         lightmapShader.SetTexture(lightmapKernel, "heighmap", heighmap);
         lightmapShader.SetTexture(lightmapKernel, "lightmap", lightmapRTexture);
-        moistureShader.SetVector("sunDirection", sunDirection);
-        moistureShader.SetVector("resolution", new Vector2(resolution.x, resolution.y));
-        moistureShader.SetVector("size", new Vector2(1, 1));
+        lightmapShader.SetVector("sunDirection", sunDirection);
+        lightmapShader.SetVector("resolution", new Vector2(resolution.x, resolution.y));
+        lightmapShader.SetVector("size", new Vector2(1, 1));
 
         lightmapShader.Dispatch(lightmapKernel, gx, gy, 1);
 
@@ -223,11 +223,10 @@ class MapGenerator : MonoBehaviour
 
         var texture = new Texture2D(renderTexture.width, renderTexture.height)
         {
-            wrapMode = TextureWrapMode.Clamp
+            wrapMode = TextureWrapMode.Clamp,
         };
         texture.SetPixels(colors);
         texture.Apply(true, false); // true = перезаписать исходные данные
-
         // пока костыль, но пусть будет
         texture = TextureFlip.FlipHorizontal(texture);
         texture = TextureFlip.RotateTexture90CounterClockwise(texture);
@@ -236,9 +235,8 @@ class MapGenerator : MonoBehaviour
         {
             diffuseTexture = texture,
             normalMapTexture = null,
-            tileSize = new Vector2(terrain.terrainData.size.x, terrain.terrainData.size.z)
+            tileSize = new Vector2(terrain.terrainData.size.x, terrain.terrainData.size.z),
         };
-        //moistureLayer.tileSize = new Vector3(1f, 0f, 1f);
 
         terrain.terrainData.terrainLayers = new TerrainLayer[] { textureLayer };
 
