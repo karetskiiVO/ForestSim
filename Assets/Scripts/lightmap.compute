@@ -25,8 +25,8 @@ void Lightmap (uint3 id : SV_DispatchThreadID)
     float3 worldPos = float3(uv * size - size * 0.5f, heighmap.SampleLevel(sampler_heighmap, uv, 0).r);
 
     bool inShadow = false;
-    float3 rayPos = worldPos;
     float3 rayDir = normalize(sunDirection.xzy);
+    float3 rayPos = worldPos;
 
     [loop]
     for(int i = 0; i < maxSteps; i++)
