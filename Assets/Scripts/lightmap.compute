@@ -1,0 +1,33 @@
+#pragma kernel Lightmap
+
+Texture2D<float> heighmap;
+RWTexture2D<float> lightmap;
+
+float3 sunDirection;
+uint2 resolution;
+float2 size;
+
+[numthreads(8,8,1)]
+void Lightmap(uint3 uv : SV_DispatchThreadID) {
+    if (uv.x >= resolution.x || uv.y >= resolution.y) return;
+
+    float3 pos = float3(uv.x * size.x, uv.y * size.y, heighmap[uv.xy]);
+
+    float3 step = normalize(sunDirection.xzy) * min(size.x, size.y) * 0.5;
+    uint maxSteps = (uint)(sqrt((float)(resolution.x * resolution.x + resolution.y * resolution.y)) * 2.0f);
+    for (uint i = 1; i < maxSteps; i++) {
+        float3 tracedPos = pos + i * step;
+
+        uint2 tracedUV = (uint2)(tracedPos.xy / size);
+
+        if (tracedUV.x >= resolution.x || tracedUV.y >= resolution.y || tracedUV.x < 0 || tracedUV.y < 0) break;
+
+        if (heighmap[tracedUV] > tracedPos.z + 0.1f) {
+            lightmap[uv.xy] = 0.f;
+            return;
+        }
+    }
+
+    lightmap[uv.xy] = 1.f; // Если дошли сюда, то пиксель освещён
+}
+

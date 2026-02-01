@@ -35,33 +35,33 @@ void simulate(int2 uv) {
     float h = heighmap[pos];
     float2 grad = GradientTex[pos];
     float currentMoisture = Moisture[pos];
-    
+
     float inflow = 0.0f;
     float outflow = 0.0f;
-    
+
     // По градиентному полю определяем соседей
     for(int i = 0; i < 4; i++)
     {
         int2 dir = dirs[i];
         int2 nPos = pos + dir;
-        
-        if (nPos.x < 0 || nPos.x >= resolution.x || nPos.y < 0 || nPos.y >= resolution.y) 
+
+        if (nPos.x < 0 || nPos.x >= resolution.x || nPos.y < 0 || nPos.y >= resolution.y)
             continue;
-            
+
         float nh = heighmap[nPos];
         float nMoisture = Moisture[nPos];
-        
+
         // Потенциал = height + moisture_pressure
         float potential = h + currentMoisture * 0.1;
         float nPotential = nh + nMoisture * 0.1;
-        
+
         // Течёт от высокого потенциала к низкому
         if (potential > nPotential)
             outflow += (potential - nPotential) * flowSpeed * dt;
         else if (nPotential > potential)
             inflow += (nPotential - potential) * flowSpeed * dt;
     }
-    
+
     // Обновление с ограничением ёмкости
     float newMoisture = saturate(currentMoisture + inflow - outflow);
     MoistureBuf[pos] = newMoisture;

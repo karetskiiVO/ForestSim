@@ -25,7 +25,7 @@ class MapGenerator : MonoBehaviour
     [SerializeField]
     ComputeShader gradShader;
     [SerializeField]
-    ComputeShader moistureShader, initShader;
+    ComputeShader moistureShader, initShader, lightmapShader;
 
     [SerializeField]
     int iterations = 10; // количество шагов релаксации
@@ -35,15 +35,15 @@ class MapGenerator : MonoBehaviour
     [Sirenix.OdinInspector.Button]
     void Generate() {
         var random = seed == ""
-            ? new System.Random() 
+            ? new System.Random()
             : new System.Random(seed.GetHashCode());
 
-        var map = CreateMap(random);        
+        var map = CreateMap(random);
         var heighs = Enumerable.Range(0, map.GetLength(0))
             .SelectMany(i => Enumerable.Range(0, map.GetLength(1))
             .Select(j => map[i, j]));
 
-        Debug.Log($"min: {heighs.Min()} max: {heighs.Max()}");
+        //Debug.Log($"min: {heighs.Min()} max: {heighs.Max()}");
 
         terrain.terrainData.SetHeights(0, 0, map);
 
@@ -58,31 +58,86 @@ class MapGenerator : MonoBehaviour
 
         var gradsRTexture = CalcGrads(heighmap);
         var moistureRTexture = CalcMoiste(heighmap, gradsRTexture);
-        DebugDrawRFloatRenderTexture(moistureRTexture, "wet");
+        var lightmapRTexture = CalcLightmap(heighmap);
 
+        var wetGradient = new Gradient();
+        {
+            var colorKeys = new GradientColorKey[3];
+            colorKeys[0] = new GradientColorKey(new Color(0.6f, 0.4f, 0.2f), 0.0f); // Сухой
+            colorKeys[1] = new GradientColorKey(new Color(0.3f, 0.6f, 0.2f), 0.5f); // Средний
+            colorKeys[2] = new GradientColorKey(new Color(0.1f, 0.2f, 0.8f), 1.0f); // Мокрый
+
+            var alphaKeys = new GradientAlphaKey[2];
+            alphaKeys[0] = new GradientAlphaKey(1.0f, 0.0f);
+            alphaKeys[1] = new GradientAlphaKey(1.0f, 1.0f);
+
+            wetGradient.SetKeys(colorKeys, alphaKeys);
+        }
+        var waterMapper = new Func<float, Color>(val => wetGradient.Evaluate(Mathf.Clamp01(val)));
+
+        var lightGradient = new Gradient();
+        {
+            var colorKeys = new GradientColorKey[3];
+            colorKeys[0] = new GradientColorKey(new Color(0.0f, 0.0f, 0.2f), 0.0f);
+            colorKeys[1] = new GradientColorKey(new Color(0.3f, 0.5f, 0.1f), 0.5f);
+            colorKeys[2] = new GradientColorKey(new Color(0.8f, 0.8f, 0.0f), 1.0f);
+
+            var alphaKeys = new GradientAlphaKey[2];
+            alphaKeys[0] = new GradientAlphaKey(1.0f, 0.0f);
+            alphaKeys[1] = new GradientAlphaKey(1.0f, 1.0f);
+
+            wetGradient.SetKeys(colorKeys, alphaKeys);
+        }
+        var lightMapper = new Func<float, Color>(val => lightGradient.Evaluate(Mathf.Clamp01(val)));
+
+        //DebugDrawRFloatRenderTexture<float>(moistureRTexture, waterMapper, "wet");
+        DebugDrawRFloatRenderTexture(lightmapRTexture, lightMapper, "light");
+
+        lightmapRTexture.Release();
         gradsRTexture.Release();
         moistureRTexture.Release();
     }
 
+    [SerializeField]
+    Vector3 sunDirection;
+
+    RenderTexture CalcLightmap(Texture heighmap) {
+        var lightmapRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat)
+        {
+            enableRandomWrite = true,
+            filterMode = FilterMode.Point,
+        };
+        lightmapRTexture.Create();
+
+        int gx = Mathf.CeilToInt(resolution.x / 8.0f);
+        int gy = Mathf.CeilToInt(resolution.y / 8.0f);
+
+        int lightmapKernel = lightmapShader.FindKernel("Lightmap");
+
+        lightmapShader.SetTexture(lightmapKernel, "heighmap", heighmap);
+        lightmapShader.SetTexture(lightmapKernel, "lightmap", lightmapRTexture);
+        moistureShader.SetVector("sunDirection", sunDirection);
+        moistureShader.SetVector("resolution", new Vector2(resolution.x, resolution.y));
+        moistureShader.SetVector("size", new Vector2(1, 1));
+
+        lightmapShader.Dispatch(lightmapKernel, gx, gy, 1);
+
+        return lightmapRTexture;
+    }
+
     RenderTexture CalcMoiste(Texture heighmap, RenderTexture gradsField) {
-        var moistureRTexture = new RenderTexture(resolution.x, resolution.y, 0, RenderTextureFormat.RFloat)
+        var moistureRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat)
         {
             enableRandomWrite = true,
             filterMode = FilterMode.Point,
         };
         moistureRTexture.Create();
-        Graphics.SetRenderTarget(moistureRTexture);
-        GL.Clear(true, true, Color.black); // Очищаем черным (0)
-        Graphics.SetRenderTarget(null);
-        var moistureBufRTexture = new RenderTexture(resolution.x, resolution.y, 0, RenderTextureFormat.RFloat)
+        var moistureBufRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat)
         {
             enableRandomWrite = true,
             filterMode = FilterMode.Point,
         };
         moistureBufRTexture.Create();
-        Graphics.SetRenderTarget(moistureBufRTexture);
-        GL.Clear(true, true, Color.black); // Очищаем черным (0)
-        Graphics.SetRenderTarget(null);
 
         int gx = Mathf.CeilToInt(resolution.x / 8.0f);
         int gy = Mathf.CeilToInt(resolution.y / 8.0f);
@@ -97,7 +152,7 @@ class MapGenerator : MonoBehaviour
         moistureShader.SetTexture(moistureKernel, "GradientTex", gradsField);
         moistureShader.SetTexture(moistureKernel, "Moisture", moistureRTexture);
         moistureShader.SetTexture(moistureKernel, "MoistureBuf", moistureBufRTexture);
-        
+
         for(int i = 0; i < iterations; i++)
         {
             moistureShader.SetVector("size", new Vector2(1, 1));
@@ -147,7 +202,12 @@ class MapGenerator : MonoBehaviour
         return gradsRTexture;
     }
 
-    void DebugDrawRFloatRenderTexture (RenderTexture renderTexture, string outName = "debug") {
+    void DebugDrawRFloatRenderTexture<TextureData>(
+        RenderTexture renderTexture,
+        Func<TextureData, Color> colorMapper,
+        string outName = "debug")
+    where TextureData : struct
+    {
         RenderTexture.active = renderTexture;
         var textureRaw = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RFloat, false);
         textureRaw.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
@@ -157,25 +217,8 @@ class MapGenerator : MonoBehaviour
         var pixelData = textureRaw.GetPixelData<float>(0);
         Debug.Log($"min: {pixelData.Min()}, max: {pixelData.Max()} cnt: {pixelData.Count(Single.IsNaN)}");
 
-        // **НОРМАЛИЗАЦИЯ**: float moisture → Color (dry → wet)
-        var textureGradient = new Gradient();
-    
-        // Настройка градиента по умолчанию
-        var colorKeys = new GradientColorKey[3];
-        colorKeys[0] = new GradientColorKey(new Color(0.6f, 0.4f, 0.2f), 0.0f); // Сухой
-        colorKeys[1] = new GradientColorKey(new Color(0.3f, 0.6f, 0.2f), 0.5f); // Средний
-        colorKeys[2] = new GradientColorKey(new Color(0.1f, 0.2f, 0.8f), 1.0f); // Мокрый
-        
-        var alphaKeys = new GradientAlphaKey[2];
-        alphaKeys[0] = new GradientAlphaKey(1.0f, 0.0f);
-        alphaKeys[1] = new GradientAlphaKey(1.0f, 1.0f);
-        
-        textureGradient.SetKeys(colorKeys, alphaKeys);
-        var colors = textureRaw.GetPixelData<float>(0)
-            .Select(level => {
-                float t = Mathf.Clamp01(level); // нормализация 0..1
-                return textureGradient.Evaluate(t);
-            })
+        var colors = textureRaw.GetPixelData<TextureData>(0)
+            .Select(colorMapper)
             .ToArray();
 
         var texture = new Texture2D(renderTexture.width, renderTexture.height)
@@ -184,22 +227,24 @@ class MapGenerator : MonoBehaviour
         };
         texture.SetPixels(colors);
         texture.Apply(true, false); // true = перезаписать исходные данные
-        
+
         // пока костыль, но пусть будет
         texture = TextureFlip.FlipHorizontal(texture);
         texture = TextureFlip.RotateTexture90CounterClockwise(texture);
-    
-        TerrainLayer textureLayer = new TerrainLayer();
-        textureLayer.diffuseTexture = texture;  // ваша готовая текстура!
-        textureLayer.normalMapTexture = null;
-        textureLayer.tileSize = new Vector2(terrain.terrainData.size.x, terrain.terrainData.size.z);
+
+        var textureLayer = new TerrainLayer
+        {
+            diffuseTexture = texture,
+            normalMapTexture = null,
+            tileSize = new Vector2(terrain.terrainData.size.x, terrain.terrainData.size.z)
+        };
         //moistureLayer.tileSize = new Vector3(1f, 0f, 1f);
 
         terrain.terrainData.terrainLayers = new TerrainLayer[] { textureLayer };
-    
+
         // 3. Splatmap с одним слоем — вес всегда 1.0
         float[,,] alphamap = new float[terrain.terrainData.alphamapWidth, terrain.terrainData.alphamapHeight, 1];
-        
+
         for (int x = 0; x < terrain.terrainData.alphamapWidth; x++)
         {
             for (int y = 0; y < terrain.terrainData.alphamapHeight; y++)
@@ -207,7 +252,7 @@ class MapGenerator : MonoBehaviour
                 alphamap[x, y, 0] = 1.0f; // 100% вес для единственного слоя
             }
         }
-        
+
         terrain.terrainData.SetAlphamaps(0, 0, alphamap);
 
         string path = Path.Combine(Application.dataPath, outName+".png");
@@ -219,7 +264,7 @@ class MapGenerator : MonoBehaviour
         var perm = Enumerable.Range(0, 256)
             .OrderBy(_ => random.Next())
             .ToArray();
-        
+
         perm = perm.Concat(perm).ToArray();
 
         var map = new float[resolution.x, resolution.y];
