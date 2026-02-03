@@ -1,9 +1,13 @@
-Shader "Unlit/testShader"
+Shader "Custom/PixelBlobUpscaler"
 {
     Properties
     {
-        maskTexture  ("Texture", 2D) = "white" {}
-        noiseTexture ("Texture", 2D) = "white" {}
+        _MainTex ("Low-Res Blob Texture", 2D)                   = "white" {}
+        _NoiseTex("Noise texture", 2D)                          = "white" {}
+        _UpscaleFactor ("Upscale Factor", Float)                = 8.0
+        _Smoothness ("Border Smoothness", Range(0.001, 2.0))    = 0.5
+        _Threshold ("Black/White Threshold", Range(0.0, 1.0))   = 0.5
+        [Toggle] _OriginalEnable ("Original", Float)            = 0
     }
     SubShader
     {
@@ -15,8 +19,6 @@ Shader "Unlit/testShader"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            // make fog work
-            #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
 
@@ -29,87 +31,128 @@ Shader "Unlit/testShader"
             struct v2f
             {
                 float2 uv : TEXCOORD0;
-                UNITY_FOG_COORDS(1)
                 float4 vertex : SV_POSITION;
             };
 
-            sampler2D noiseTexture;
-            float4 noiseTexture_ST;
+            sampler2D _MainTex;
+            float4 _MainTex_ST;
+            float4 _MainTex_TexelSize;
 
-            sampler2D maskTexture;
-            float4 maskTexture_ST;
+            sampler2D _NoiseTex;
+            float4 _NoiseTex_ST;
+            float4 _NoiseTex_TexelSize;
 
-            const float _ScaleFactor   = 1.0;
-            const float _NoiseStrength = 10;
-            const float _EdgeDetail    = 2.0;
-            const float _NoiseScale    = 10;
+            float _UpscaleFactor;
+            float _Smoothness;
+            float _Threshold;
 
-            v2f vert (appdata v)
-            {
+            bool _OriginalEnable;
+
+            v2f vert (appdata v) {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = TRANSFORM_TEX(v.uv, noiseTexture);
-                UNITY_TRANSFER_FOG(o,o.vertex);
+                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
-            {
-                float scaleFactor = 10;
-                float2 texelSize = 1.0 / float2(32, 32) / _ScaleFactor;
+            float getPixel (float2 uv) { return tex2D(_MainTex, uv).r; }
 
-                fixed4 col = tex2D(noiseTexture, i.uv);
+            float cubic (float x) {
+                float x2 = x * x;
+                float x3 = x2 * x;
+                if (x < 1.0)
+                    return (1.5 * x3 - 2.5 * x2 + 1.0);
+                else if (x < 2.0)
+                    return (-0.5 * x3 + 2.5 * x2 - 4.0 * x + 2.0);
+                return 0.0;
+            }
 
-                float sum = 0;
-                float weightSum = 0;
+            float sampleBilinearSmooth (float2 uv) {
+                float2 pixelPos = uv / _MainTex_TexelSize.xy;
+                float2 floorPos = floor(pixelPos);
+                float2 frac = pixelPos - floorPos;
+
+                float2 texelSize = _MainTex_TexelSize.xy;
+                float tl = getPixel((floorPos + float2(0.0, 0.0)) * texelSize);
+                float tr = getPixel((floorPos + float2(1.0, 0.0)) * texelSize);
+                float bl = getPixel((floorPos + float2(0.0, 1.0)) * texelSize);
+                float br = getPixel((floorPos + float2(1.0, 1.0)) * texelSize);
+
+                float top = lerp(tl, tr, frac.x);
+                float bottom = lerp(bl, br, frac.x);
+                float result = lerp(top, bottom, frac.y);
+
+                return result;
+            }
+
+            float sampleAdvancedSmooth (float2 uv) {
+                float2 pixelPos = uv / _MainTex_TexelSize.xy;
+                float2 centerPos = floor(pixelPos) + 0.5;
+                float2 offset = pixelPos - centerPos;
+
+                float dist = length(offset);
+
+                float centerValue = getPixel(centerPos * _MainTex_TexelSize.xy);
+
+                float sum = 0.0;
+                float totalWeight = 0.0;
 
                 for (int x = -1; x <= 1; x++) {
                     for (int y = -1; y <= 1; y++) {
-                        float weight = 1.0 / (1.0 + abs(x) + abs(y));
-                        float sample = tex2D(
-                            maskTexture,
-                            i.uv + float2(x, y) * texelSize * 0.5
-                        ).r;
-                        sum += sample * weight;
-                        weightSum += weight;
+                        float2 samplePos = centerPos + float2(x, y);
+                        float2 sampleUV = samplePos * _MainTex_TexelSize.xy;
+                        float sampleValue = getPixel(sampleUV);
+
+                        float2 toSample = float2(x, y) - offset;
+                        float sampleDist = length(toSample) + 2 * tex2D(_NoiseTex, samplePos).r;
+
+                        float weight = exp(-sampleDist * sampleDist / (_Smoothness * _Smoothness));
+
+                        sum += sampleValue * weight;
+                        totalWeight += weight;
                     }
                 }
 
-                float base = sum / weightSum;
+                return sum / totalWeight;
+            }
 
-                // Многослойный шум для детализации краёв
-                float2 noiseUV = i.uv * _NoiseScale;
-                float noise1 = tex2D(noiseTexture, noiseUV).r;
-                float noise2 = tex2D(noiseTexture, noiseUV * 2.3).r;
-                float noise3 = tex2D(noiseTexture, noiseUV * 4.7).r;
+            float sampleBicubic (float2 uv) {
+                float2 pixelPos = uv / _MainTex_TexelSize.xy;
+                float2 centerPos = floor(pixelPos);
+                float2 frac = pixelPos - centerPos;
+                
+                float result = 0.0;
+                
+                for (int y = -1; y <= 2; y++) {
+                    float yWeight = cubic(abs(frac.y - y));
+                    for (int x = -1; x <= 2; x++) {
+                        float xWeight = cubic(abs(frac.x - x));
+                        float2 samplePos = (centerPos + float2(x, y)) * _MainTex_TexelSize.xy;
+                        float sample = getPixel(samplePos);
+                        result += sample * xWeight * yWeight;
+                    }
+                }
+                
+                return result;
+            }
 
-                // Комбинируем шумы с разными весами
-                float noise = noise1 * 0.5 + noise2 * 0.35 + noise3 * 0.15;
-                noise = noise * 2.0 - 1.0; // Приводим к диапазону [-1, 1]
+            fixed4 frag (v2f i) : SV_Target {
+                float smoothValue;
 
-                // Усиливаем шум на границах
-                float edgeMask = saturate(abs(base - 0.5) * _EdgeDetail);
-                noise *= _NoiseStrength * (1.0 + edgeMask * 2.0);
+                smoothValue = sampleAdvancedSmooth(i.uv);
 
-                // Пороговое значение с шумом
-                float threshold = 0.5 + noise * 0.25;
+                float edgeWidth = 0.1 / _UpscaleFactor;
+                float result = smoothstep(_Threshold - edgeWidth, _Threshold + edgeWidth, smoothValue);
 
-                // Изменяемая ширина границы в зависимости от шума
-                float edgeWidth = 0.05 + abs(noise) * 0.1;
+                result = result > 0.5 ? 1.0 : 0.0;
+                fixed4 col = fixed4(result, result, result, 1.0);
 
-                // Создаём результат с шумом на границах
-                float result = smoothstep(threshold - edgeWidth, threshold + edgeWidth, base);
-
-                // Добавляем дополнительную детализацию на границах
-                if (result > 0.1 && result < 0.9) {
-                    // Добавляем высокочастотный шум на границы
-                    float fineNoise = tex2D(noiseTexture, i.uv * 8.0).r * 2.0 - 1.0;
-                    result += fineNoise * 0.15 * (1.0 - abs(result - 0.5) * 2.0);
-                    result = saturate(result);
+                if (_OriginalEnable > 0.5) {
+                    if (tex2D(_MainTex, i.uv).r >= 1) {
+                        col = fixed4(1, 0, 0, 1);
+                    }
                 }
 
-                col = float4(result, result, result, 1.0);
-                UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;
             }
             ENDCG

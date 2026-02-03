@@ -36,7 +36,7 @@ public class TestMonobehavour : MonoBehaviour
         noiseTex.SetPixels(pix);
         noiseTex.Apply();
 
-        material.SetTexture("noiseTexture", noiseTex);
-        material.SetTexture("maskTexture", sample);
+        material.SetTexture("_NoiseTex", noiseTex);
+        material.SetTexture("_MainTex", sample);
     }
 }
