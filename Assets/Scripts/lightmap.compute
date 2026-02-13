@@ -1,0 +1,50 @@
+#pragma kernel Lightmap
+
+RWTexture2D<float> lightmap : register(u0);
+Texture2D<float> heighmap : register(t0);
+SamplerState sampler_heighmap : register(s0);
+
+cbuffer Uniforms : register(b0)
+{
+    float2 resolution;
+    float3 sunDirection;
+    float2 size;
+};
+
+static const float stepSize = 0.01f;
+static const int maxSteps = 512;
+
+[numthreads(8,8,1)]
+void Lightmap (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)resolution.x || id.y >= (uint)resolution.y) return;
+
+    float2 uv = float2(id.xy) / resolution;
+    float2 pixelSize = size / resolution;
+
+    float3 worldPos = float3(uv * size - size * 0.5f, heighmap.SampleLevel(sampler_heighmap, uv, 0).r);
+
+    bool inShadow = false;
+    float3 rayDir = normalize(sunDirection.xzy);
+    float3 rayPos = worldPos;
+
+    [loop]
+    for(int i = 0; i < maxSteps; i++)
+    {
+        rayPos += rayDir * stepSize;
+
+        float2 rayUV = (rayPos.xy + size * 0.5f) / size;
+
+        if (rayUV.x < 0.0f || rayUV.x > 1.0f || rayUV.y < 0.0f || rayUV.y > 1.0f) break;
+
+        float terrainHeight = heighmap.SampleLevel(sampler_heighmap, rayUV, 0).r;
+
+        if (rayPos.z < terrainHeight)
+        {
+            inShadow = true;
+            break;
+        }
+    }
+
+    lightmap[id.xy] = inShadow ? 0.0f : 1.0f;
+}
