@@ -1,7 +1,7 @@
 using Unity.VisualScripting;
 using UnityEngine;
 
-namespace ProceduralWoods.Utilities {
+namespace ProceduralVegetation.Utilities {
     // DO NOT CREATE MANUALY
     public struct Latitude {
         private float lat;
@@ -19,6 +19,4 @@ namespace ProceduralWoods.Utilities {
 
         public static implicit operator float (Latitude latitude) => latitude.lat;
     }
-
-
 }

@@ -1,5 +1,0 @@
-using XNode;
-
-namespace ProceduralWoods {
-
-}

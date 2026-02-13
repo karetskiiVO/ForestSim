@@ -1,7 +1,7 @@
 using UnityEngine;
 
-namespace ProceduralWoods {
-    public interface ILandsacapeDescriptor {
+namespace ProceduralVegetation {
+    public interface ILandscapeDescriptor {
         // Границы местности
         public UnityEngine.Bounds bbox { get; }
 
@@ -10,5 +10,13 @@ namespace ProceduralWoods {
         public float NANStrategy(UnityEngine.Vector2 pos) => 0;
 
         public Utilities.Latitude latitude { get; }
+    }
+
+    public interface ISimulated {
+        void Simulate();
+    }
+
+    public interface IResetable {
+        void Reset();
     }
 }

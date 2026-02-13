@@ -1,0 +1,72 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-656815714226270756
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8dabbca1a5455e844be1d9a8d3a894ae, type: 3}
+  m_Name: Core Landscape
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: -312, y: -40}
+  ports:
+    keys:
+    - landscapeCreator
+    values:
+    - _fieldName: landscapeCreator
+      _node: {fileID: -656815714226270756}
+      _typeQualifiedName: System.Func`1[[ProceduralVegetation.ILandscapeDescriptor,
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089
+      connections: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7b94baf0594c834986cdb819f8e6301, type: 3}
+  m_Name: New Simulation Graph
+  m_EditorClassIdentifier: 
+  nodes:
+  - {fileID: 6597244818307288931}
+--- !u!114 &6597244818307288931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 656c6686b7fa1544ba1bd279a7c7e67f, type: 3}
+  m_Name: Test 1
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: -355.19998, y: -6.0818024}
+  ports:
+    keys:
+    - landscape
+    values:
+    - _fieldName: landscape
+      _node: {fileID: 6597244818307288931}
+      _typeQualifiedName: ProceduralVegetation.DescriptorGetter`1[[ProceduralVegetation.ILandscapeDescriptor,
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
