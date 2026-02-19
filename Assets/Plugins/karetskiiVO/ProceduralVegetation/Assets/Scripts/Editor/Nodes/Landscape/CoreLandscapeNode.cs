@@ -1,30 +1,24 @@
 using UnityEngine;
 
-using XNode;
-
 namespace ProceduralVegetation.Editor.Nodes {
     public abstract class CoreLandscapeNode : EditorNode {
-        [Output] public Landscape landscape = new();
-        private Landscape result = new();
+        [Input] public ILandscapeDescriptor.BakeParams bakeParams;
+        [Output] public Descriptor<BakedLandscape> landscape = new();
 
         public override void Reset() {
-            result = new();
-
+            landscape = new();
             base.Reset();
         }
 
         public override void Evaluate() {
-            result.landscapeDescriptor = GetLandscapeDescriptor();
-        }
+            var bakeParams = GetInputValue(
+                "bakeParams",
+                new ILandscapeDescriptor.BakeParams() {
+                    resolution = new Vector2Int(512, 512),
+                }
+            );
 
-        public override object GetValue(NodePort port) {
-            switch (port.fieldName) {
-                case "landscape":
-                    landscape = result;
-                    return landscape;
-                default:
-                    return null;
-            }
+            landscape.descriptor = GetLandscapeDescriptor().Bake(bakeParams);
         }
 
         public abstract ILandscapeDescriptor GetLandscapeDescriptor();

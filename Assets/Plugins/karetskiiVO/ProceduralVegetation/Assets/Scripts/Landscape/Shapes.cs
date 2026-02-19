@@ -12,13 +12,15 @@ namespace ProceduralVegetation {
         public Latitude lat;
         public Bounds bounds;
 
-        public Bounds bbox => throw new System.NotImplementedException();
-        public Latitude latitude => throw new System.NotImplementedException();
+        public Bounds bbox => bounds;
+        public Latitude latitude => lat;
 
-        public float Height(Vector2 pos) {
+        public float Height(Vector2 lpos) {
+            if (!bbox.Contains(new Vector3(lpos.x, bbox.center.y, lpos.y))) return float.NaN;
+
             float centerHeight = (alpha > 0) ? bounds.max.y : bounds.min.y;
 
-            return centerHeight - alpha * (pos - center).magnitude;
+            return centerHeight - alpha * (lpos - center).magnitude;
         }
     }
 }

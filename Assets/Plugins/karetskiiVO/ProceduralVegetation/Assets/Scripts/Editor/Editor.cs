@@ -31,7 +31,7 @@ namespace ProceduralVegetation.Editor {
         public override void OnGUI() {
             var buttonRect = new Rect(5, 5, 140, 25);
 
-            if (GUI.Button(buttonRect, "Run simulation")) {
+            if (GUI.Button(buttonRect, "Force Run")) {
                 var graph = target as SimulationGraph;
 
                 if (graph != null) graph.Execute();

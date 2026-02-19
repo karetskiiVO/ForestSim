@@ -1,5 +1,38 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-9159202116601644062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab4519baa02fdae49b50436cfdb8fb9f, type: 3}
+  m_Name: Bake Parameters
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: -408, y: -136}
+  ports:
+    keys:
+    - bakeParams
+    values:
+    - _fieldName: bakeParams
+      _node: {fileID: -9159202116601644062}
+      _typeQualifiedName: ProceduralVegetation.ILandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
+        Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: bakeParams
+        node: {fileID: 6917208474377834752}
+        reroutePoints: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+  bakeParams:
+    resolution: {x: 0, y: 0}
+  resolution: {x: 512, y: 512}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13,39 +46,9 @@ MonoBehaviour:
   m_Name: New Simulation Graph
   m_EditorClassIdentifier: 
   nodes:
-  - {fileID: 1371019543514832568}
-  - {fileID: 1105320077100917396}
---- !u!114 &1105320077100917396
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da537e25018bf954a880ce8d3aedb11b, type: 3}
-  m_Name: Simulation
-  m_EditorClassIdentifier: 
-  graph: {fileID: 11400000}
-  position: {x: -56, y: -136}
-  ports:
-    keys:
-    - landscape
-    values:
-    - _fieldName: landscape
-      _node: {fileID: 1105320077100917396}
-      _typeQualifiedName: ProceduralVegetation.Editor.Landscape, Assembly-CSharp-Editor-firstpass,
-        Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-      connections:
-      - fieldName: landscape
-        node: {fileID: 1371019543514832568}
-        reroutePoints: []
-      _direction: 0
-      _connectionType: 0
-      _typeConstraint: 0
-      _dynamic: 0
---- !u!114 &1371019543514832568
+  - {fileID: -9159202116601644062}
+  - {fileID: 6917208474377834752}
+--- !u!114 &6917208474377834752
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -58,26 +61,41 @@ MonoBehaviour:
   m_Name: Cone Landscape
   m_EditorClassIdentifier: 
   graph: {fileID: 11400000}
-  position: {x: -344, y: -136}
+  position: {x: -152, y: -136}
   ports:
     keys:
+    - bakeParams
     - landscape
     values:
-    - _fieldName: landscape
-      _node: {fileID: 1371019543514832568}
-      _typeQualifiedName: ProceduralVegetation.Editor.Landscape, Assembly-CSharp-Editor-firstpass,
+    - _fieldName: bakeParams
+      _node: {fileID: 6917208474377834752}
+      _typeQualifiedName: ProceduralVegetation.ILandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
         Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
       connections:
-      - fieldName: landscape
-        node: {fileID: 1105320077100917396}
+      - fieldName: bakeParams
+        node: {fileID: -9159202116601644062}
         reroutePoints: []
+      _direction: 0
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+    - _fieldName: landscape
+      _node: {fileID: 6917208474377834752}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[ProceduralVegetation.BakedLandscape,
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections: []
       _direction: 1
       _connectionType: 0
       _typeConstraint: 0
       _dynamic: 0
+  bakeParams:
+    resolution: {x: 0, y: 0}
   descriptor:
     center: {x: 0, y: 0}
     alpha: 0
+    lat:
+      lat: 0
     bounds:
       m_Center: {x: 0, y: 0, z: 0}
       m_Extent: {x: 0, y: 0, z: 0}

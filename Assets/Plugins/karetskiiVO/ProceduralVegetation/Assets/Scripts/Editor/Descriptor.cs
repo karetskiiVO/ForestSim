@@ -2,9 +2,8 @@ using System;
 
 namespace ProceduralVegetation.Editor {
     [Serializable]
-    public struct Landscape {
+    public struct Descriptor<DescriptorType> {
         [NonSerialized]
-        public ILandscapeDescriptor landscapeDescriptor;
+        public DescriptorType descriptor;
     }
-
 }

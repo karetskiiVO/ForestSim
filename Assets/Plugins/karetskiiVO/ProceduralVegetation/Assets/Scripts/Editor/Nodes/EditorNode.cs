@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 
 using ProceduralVegetation.Utilities;
 
@@ -21,6 +22,14 @@ namespace ProceduralVegetation.Editor.Nodes {
 
         public virtual void Reset() {
             state = State.NotCalculated;
+        }
+
+        public override object GetValue(NodePort port) {
+            var fieldInfo = GetType()
+                .GetField(port.fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (fieldInfo == null) return null;
+            return fieldInfo.GetValue(this);
         }
 
         // Reduce boilerplate do not
