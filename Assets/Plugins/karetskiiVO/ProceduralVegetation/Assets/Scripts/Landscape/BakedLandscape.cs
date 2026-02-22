@@ -39,5 +39,4 @@ namespace ProceduralVegetation {
             return this;
         }
     }
-
 }
