@@ -61,7 +61,6 @@ namespace ProceduralVegetation {
                 center = bbox.center,
                 minHeight = minH,
                 maxHeight = maxH,
-                lat = latitude
             };
         }
 
@@ -71,8 +70,6 @@ namespace ProceduralVegetation {
         public float Height(UnityEngine.Vector2 lpos);
 
         public float NANStrategy(UnityEngine.Vector2 lpos) => 0;
-
-        public Utilities.Latitude latitude { get; }
     }
 
     public interface ISimulated {

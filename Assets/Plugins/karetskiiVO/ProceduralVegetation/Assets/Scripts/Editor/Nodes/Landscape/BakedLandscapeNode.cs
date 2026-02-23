@@ -1,14 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Reflection;
-
-using UnityEditor;
-
-using UnityEngine;
-
-using XNodeEditor;
-
-using static XNode.Node;
 
 namespace ProceduralVegetation.Editor.Nodes {
     [Serializable]

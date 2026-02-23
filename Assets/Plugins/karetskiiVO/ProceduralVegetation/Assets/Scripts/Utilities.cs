@@ -33,25 +33,20 @@ namespace ProceduralVegetation.Utilities {
     }
 
 #if UNITY_EDITOR
-[CustomPropertyDrawer(typeof(Latitude))]
+    [CustomPropertyDrawer(typeof(Latitude))]
     public class LatitudeDrawer : PropertyDrawer {
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label) {
             EditorGUI.BeginProperty(position, label, property);
 
             var latProp = property.FindPropertyRelative("lat");
-            if (latProp == null) {
-                EditorGUI.LabelField(position, label, "Field lat not found");
-                EditorGUI.EndProperty();
-                return;
-            }
-
-            Rect contentRect = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
-
-            EditorGUI.BeginChangeCheck();
-            float degrees = EditorGUI.FloatField(contentRect, latProp.floatValue * Mathf.Rad2Deg);
-            if (EditorGUI.EndChangeCheck()) {
-                latProp.floatValue = Mathf.Clamp(degrees, -90f, 90f) * Mathf.Deg2Rad;
-                property.serializedObject.ApplyModifiedProperties();
+            if (latProp != null) {
+                EditorGUI.BeginChangeCheck();
+                float degrees = EditorGUI.FloatField(position, label, latProp.floatValue * Mathf.Rad2Deg);
+                if (EditorGUI.EndChangeCheck()) {
+                    latProp.floatValue = Mathf.Clamp(degrees, -90f, 90f) * Mathf.Deg2Rad;
+                }
+            } else {
+                EditorGUI.LabelField(position, label, new GUIContent("?"));
             }
 
             EditorGUI.EndProperty();
@@ -62,36 +57,6 @@ namespace ProceduralVegetation.Utilities {
         }
     }
 #endif
-
-
-    // #if UNITY_EDITOR
-    //     [CustomPropertyDrawer(typeof(Latitude))]
-    //     public class LatitudeDrawer : PropertyDrawer {
-    //         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label) {
-    //             EditorGUI.BeginProperty(position, label, property);
-
-    //             var latProp = property.FindPropertyRelative("lat");
-    //             position = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
-
-    //             Rect contentRect = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
-
-    //             EditorGUI.BeginChangeCheck();
-    //             float degrees = EditorGUI.FloatField(position, latProp.floatValue * Mathf.Rad2Deg);
-
-    //             if (EditorGUI.EndChangeCheck()) {
-    //                 latProp.floatValue = Mathf.Clamp(degrees, -90f, 90f) * Mathf.Deg2Rad;
-    //                 property.serializedObject.ApplyModifiedProperties();
-    //             }
-
-    //             EditorGUI.EndProperty();
-    //         }
-
-    //         public override float GetPropertyHeight(SerializedProperty property, GUIContent label) {
-    //             return EditorGUIUtility.singleLineHeight;
-    //         }
-    //     }
-    // #endif
-
     public static class LinqExtents {
         public static IEnumerable<Tout> FilterCast<Tin, Tout>(this IEnumerable<Tin> source) {
             foreach (object item in source) {
@@ -108,6 +73,10 @@ namespace ProceduralVegetation.Utilities {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Dot(this Vector2Int a, int x, int y) => a.x * x + a.y * y;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float[] ToArray(this Vector2 v) => new float[] { v.x, v.y };
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float[] ToArray(this Vector3 v) => new float[] { v.x, v.y, v.z };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2Int CeilToInt(this Vector2 val) => new(Mathf.CeilToInt(val.x), Mathf.CeilToInt(val.y));

@@ -13,7 +13,6 @@ namespace ProceduralVegetation {
         public Vector2 texelSize;
         public Vector3 center;
         public float minHeight, maxHeight;
-        public Latitude lat;
 
         public Bounds bbox => new Bounds(
             center,
@@ -23,8 +22,6 @@ namespace ProceduralVegetation {
                 texelSize.y * heightmap.height
             )
         );
-
-        public Latitude latitude => lat;
 
         public float Height(Vector2 lpos) {
             // TODO check width/height

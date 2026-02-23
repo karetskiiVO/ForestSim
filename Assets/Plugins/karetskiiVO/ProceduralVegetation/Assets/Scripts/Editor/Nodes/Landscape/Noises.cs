@@ -4,10 +4,10 @@ using XNode;
 
 namespace ProceduralVegetation.Editor.Nodes {
     [Serializable]
-    [CreateNodeMenu("Landscape/Shapes/Cone")]
+    [CreateNodeMenu("Landscape/Noises/RidgedNoise")]
     [NodeWidth(304)]
-    class ConeLandscapeNode : CoreLandscapeNode {
-        public ConeLandscapeDescriptor descriptor;
+    class RidgedNoiseLandscapeNode : CoreLandscapeNode {
+        public RidgedNoiseLandscapeDescriptor descriptor;
 
         public override ILandscapeDescriptor GetLandscapeDescriptor() {
             return descriptor;

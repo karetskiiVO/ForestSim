@@ -45,8 +45,10 @@ namespace ProceduralVegetation.Editor.Nodes {
 
 
             Inputs
-                .Select(port => port.node)
+                .SelectMany(port => port.GetConnections())
+                .Select(connectedPort => connectedPort.node)
                 .FilterCast<Node, EditorNode>()
+                .Distinct()
                 .ForEach(node => node.GraphCalc());
 
             Evaluate();
