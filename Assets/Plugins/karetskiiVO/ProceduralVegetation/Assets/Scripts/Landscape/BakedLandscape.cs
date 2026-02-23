@@ -17,7 +17,11 @@ namespace ProceduralVegetation {
             // TODO check width/height
             if (!bbox.Contains(new Vector3(lpos.x, bbox.center.y, lpos.y))) return float.NaN;
 
-            var t = heightmap.GetRawTextureData<float>()[(lpos / texelSize).CeilToInt().Dot(0, heightmap.width)];
+            var local = new Vector2(lpos.x - bbox.min.x, lpos.y - bbox.min.z) / texelSize;
+            var pixel = local.CeilToInt();
+            int px = Mathf.Clamp(pixel.x, 0, heightmap.width - 1);
+            int py = Mathf.Clamp(pixel.y, 0, heightmap.height - 1);
+            var t = heightmap.GetRawTextureData<float>()[py * heightmap.width + px];
 
             return Mathf.Lerp(minHeight, maxHeight, t);
         }

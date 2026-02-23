@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
+using Sirenix.Utilities;
+
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -77,6 +80,17 @@ namespace ProceduralVegetation.Utilities {
         public static float[] ToArray(this Vector2 v) => new float[] { v.x, v.y };
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float[] ToArray(this Vector3 v) => new float[] { v.x, v.y, v.z };
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 Lerp(Vector2 a, Vector2 b, float xCoeff, float yCoeff) => Lerp(a, b, new(xCoeff, yCoeff));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 Lerp(Vector2 a, Vector2 b, Vector2 coeffs) => a + (b - a) * coeffs.Clamp01();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 Clamp(this Vector2 v, float min, float max) =>
+            new(Mathf.Clamp(v.x, min, max), Mathf.Clamp(v.y, min, max));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 Clamp01(this Vector2 v) => v.Clamp(0, 1);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2Int CeilToInt(this Vector2 val) => new(Mathf.CeilToInt(val.x), Mathf.CeilToInt(val.y));

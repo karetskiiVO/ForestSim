@@ -1,7 +1,7 @@
 using UnityEngine;
 
 namespace ProceduralVegetation.Editor.Nodes {
-    public abstract class CoreLandscapeNode : EditorNode {
+    public abstract class BaseLandscapeNode : EditorNode {
         [Input(connectionType = ConnectionType.Override, typeConstraint = TypeConstraint.Strict)]
         public LandscapeDescriptor.BakeParams bakeParams;
         [Output]

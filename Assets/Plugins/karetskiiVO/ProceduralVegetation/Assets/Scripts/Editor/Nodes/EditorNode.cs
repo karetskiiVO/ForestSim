@@ -54,6 +54,6 @@ namespace ProceduralVegetation.Editor.Nodes {
             state = State.Done;
         }
 
-        public abstract void Evaluate();
+        public virtual void Evaluate() { }
     }
 }

@@ -5,17 +5,14 @@ using ProceduralVegetation.Utilities;
 using UnityEngine;
 
 namespace ProceduralVegetation {
-    [Serializable]
     public class RidgedNoiseLandscapeDescriptor : LandscapeDescriptor {
         /// <summary>Смещение в пространстве шума</summary>
         public Vector2 offset;
         /// <summary>Количество октав</summary>
-        [Range(1, 10)]
         public int octaves;
         /// <summary>Множитель частоты между октавами</summary>
         public float lacunarity;
         /// <summary>Множитель амплитуды между октавами</summary>
-        [Range(0f, 1f)]
         public float persistence;
         /// <summary>Резкость гребней (усиление веса)</summary>
         public float sharpness;

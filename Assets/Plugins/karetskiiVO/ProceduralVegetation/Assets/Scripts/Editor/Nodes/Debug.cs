@@ -4,21 +4,17 @@ using UnityEngine;
 
 namespace ProceduralVegetation.Editor.Nodes {
     [Serializable]
-    [CreateNodeMenu("Visualise")]
+    [CreateNodeMenu("Debug/Visualise")]
     public class VisualisationNode : EditorNode, ISimulated, IResetable {
-        [Input(connectionType = ConnectionType.Override)]
+        [Input(connectionType = ConnectionType.Override, typeConstraint = TypeConstraint.Strict)]
         public Descriptor<BakedLandscape> landscape;
+        public GameObject parent = null;
 
         private const int MAX_TILE_RES = 513;
         private const string TERRAIN_PARENT_NAME = "GeneratedTerrain";
 
-        private Terrain terrain;
-
         public void Simulate() {
-            var bakedLandscape = GetInputValue<Descriptor<BakedLandscape>>("landscape").descriptor;
-
-            if (bakedLandscape == null) Debug.LogError("Landscape");
-
+            var bakedLandscape = GetInputValue<Descriptor<BakedLandscape>>("landscape")?.descriptor;
             DrawTerrain(bakedLandscape);
         }
 
@@ -38,10 +34,21 @@ namespace ProceduralVegetation.Editor.Nodes {
 
             int tileRes = NextValidTerrainResolution(MAX_TILE_RES);
 
-            var existingParent = GameObject.Find(TERRAIN_PARENT_NAME);
-            if (existingParent != null) GameObject.DestroyImmediate(existingParent);
+            GameObject terrainParent;
+            if (parent != null) {
+                terrainParent = parent;
+            } else {
+                var existingParent = GameObject.Find(TERRAIN_PARENT_NAME);
+                if (existingParent != null) {
+                    terrainParent = existingParent;
+                } else {
+                    terrainParent = new GameObject(TERRAIN_PARENT_NAME);
+                }
+            }
 
-            var parent = new GameObject(TERRAIN_PARENT_NAME);
+            for (int i = terrainParent.transform.childCount - 1; i >= 0; i--) {
+                DestroyImmediate(terrainParent.transform.GetChild(i).gameObject);
+            }
 
             for (int tz = 0; tz < tilesZ; tz++) {
                 for (int tx = 0; tx < tilesX; tx++) {
@@ -88,15 +95,13 @@ namespace ProceduralVegetation.Editor.Nodes {
 
                     var go = Terrain.CreateTerrainGameObject(terrainData);
                     go.name = $"TerrainTile_{tx}_{tz}";
-                    go.transform.SetParent(parent.transform);
+                    go.transform.SetParent(terrainParent.transform);
 
                     float originX = landscape.bbox.center.x - worldSizeX * 0.5f + pixX0 * landscape.texelSize.x;
                     float originZ = landscape.bbox.center.z - worldSizeZ * 0.5f + pixZ0 * landscape.texelSize.y;
                     go.transform.position = new Vector3(originX, landscape.minHeight, originZ);
                 }
             }
-
-            terrain = parent.GetComponentInChildren<Terrain>();
         }
 
         static int NextValidTerrainResolution(int minSize) {
@@ -113,7 +118,64 @@ namespace ProceduralVegetation.Editor.Nodes {
         void OnDestroy() {
 
         }
+    }
 
-        public override void Evaluate() { }
+    [Serializable]
+    [CreateNodeMenu("Debug/Visualise scatter")]
+    public class ScatterVisualisationNode : EditorNode, ISimulated, IResetable {
+        [Input(connectionType = ConnectionType.Override, typeConstraint = TypeConstraint.Strict)]
+        public Descriptor<BakedLandscape> landscape;
+        [Input(connectionType = ConnectionType.Override, typeConstraint = TypeConstraint.Strict)]
+        public Descriptor<Vector2[]> points;
+
+        public Color color;
+        public GameObject parent;
+        public GameObject drawable;
+
+        private const string SCATTER_CONTAINER_NAME = "ScatterPoints";
+        private GameObject container;
+
+        public void Simulate() {
+            var landscape = GetInputValue<Descriptor<BakedLandscape>>("landscape")?.descriptor;
+            var points = GetInputValue<Descriptor<Vector2[]>>("points")?.descriptor;
+
+            DrawPoints(landscape, points);
+        }
+
+        void ClearPoints() {
+            if (container != null) {
+                GameObject.DestroyImmediate(container);
+                container = null;
+            }
+        }
+
+        void DrawPoints(BakedLandscape landscape, Vector2[] points) {
+            if (landscape == null || points == null) return;
+
+            ClearPoints();
+
+            container = new GameObject(SCATTER_CONTAINER_NAME);
+            if (parent != null)
+                container.transform.SetParent(parent.transform);
+
+            foreach (var pt in points) {
+                float h = landscape.Height(pt);
+                if (float.IsNaN(h)) continue;
+
+                GameObject go;
+                if (drawable != null) {
+                    go = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(drawable, container.transform);
+                    if (go == null)
+                        go = GameObject.Instantiate(drawable, container.transform);
+                } else {
+                    go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    go.transform.SetParent(container.transform);
+                    go.GetComponent<Renderer>().sharedMaterial = new Material(Shader.Find("Standard")) { color = color };
+                    GameObject.DestroyImmediate(go.GetComponent<SphereCollider>());
+                }
+
+                go.transform.position = new Vector3(pt.x, h, pt.y);
+            }
+        }
     }
 }

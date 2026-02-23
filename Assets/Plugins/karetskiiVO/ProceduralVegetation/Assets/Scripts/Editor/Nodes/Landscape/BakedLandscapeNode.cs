@@ -2,8 +2,8 @@ using System;
 
 namespace ProceduralVegetation.Editor.Nodes {
     [Serializable]
-    [CreateNodeMenu("landscape/baked")]
-    class BakedLandscapeNode : CoreLandscapeNode {
+    [CreateNodeMenu("Landscape/Baked landscape")]
+    class BakedLandscapeNode : BaseLandscapeNode {
         // TODO: Remove input port
         public BakedLandscape descriptor;
 

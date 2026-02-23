@@ -68,19 +68,21 @@ namespace ProceduralVegetation {
         }
 
         // Границы местности
-        public UnityEngine.Bounds bbox;
+        public Bounds bbox;
 
-        public abstract float Height(UnityEngine.Vector2 lpos);
+        public abstract float Height(Vector2 lpos);
 
-        public virtual float NANStrategy(UnityEngine.Vector2 lpos) => 0;
+        public virtual float NANStrategy(Vector2 lpos) => 0;
     }
 
     public abstract class Scatter : IEnumerable<Vector2> {
         public abstract Vector2? Next();
         public abstract void Reset();
 
+        public Bounds bbox;
+
         // Rust-style hint относительно количества точек
-        public virtual nuint? countHint { get => null; }
+        public virtual long? countHint { get => null; }
 
         public IEnumerator<Vector2> GetEnumerator() {
             Vector2? value;
@@ -92,13 +94,6 @@ namespace ProceduralVegetation {
         IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
-    }
-
-
-
-    // Описывает основные стратегии развития вида
-    public class TreeSpeciesDescriptor {
-
     }
 
     public interface ISimulated {
