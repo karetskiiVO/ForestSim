@@ -2,14 +2,12 @@ using System;
 
 using UnityEngine;
 
-using OneOf;
-using OneOf.Types;
-
 namespace ProceduralVegetation.Editor.Nodes {
     [Serializable]
     [CreateNodeMenu("Visualise")]
     public class VisualisationNode : EditorNode, ISimulated, IResetable {
-        [Input] public Descriptor<BakedLandscape> landscape;
+        [Input(connectionType = ConnectionType.Override)]
+        public Descriptor<BakedLandscape> landscape;
 
         private const int MAX_TILE_RES = 513;
         private const string TERRAIN_PARENT_NAME = "GeneratedTerrain";
@@ -92,8 +90,8 @@ namespace ProceduralVegetation.Editor.Nodes {
                     go.name = $"TerrainTile_{tx}_{tz}";
                     go.transform.SetParent(parent.transform);
 
-                    float originX = landscape.center.x - worldSizeX * 0.5f + pixX0 * landscape.texelSize.x;
-                    float originZ = landscape.center.z - worldSizeZ * 0.5f + pixZ0 * landscape.texelSize.y;
+                    float originX = landscape.bbox.center.x - worldSizeX * 0.5f + pixX0 * landscape.texelSize.x;
+                    float originZ = landscape.bbox.center.z - worldSizeZ * 0.5f + pixZ0 * landscape.texelSize.y;
                     go.transform.position = new Vector3(originX, landscape.minHeight, originZ);
                 }
             }

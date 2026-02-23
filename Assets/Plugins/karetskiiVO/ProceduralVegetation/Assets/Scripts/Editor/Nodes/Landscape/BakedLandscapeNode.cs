@@ -7,7 +7,7 @@ namespace ProceduralVegetation.Editor.Nodes {
         // TODO: Remove input port
         public BakedLandscape descriptor;
 
-        public override ILandscapeDescriptor GetLandscapeDescriptor() {
+        public override LandscapeDescriptor GetLandscapeDescriptor() {
             return descriptor;
         }
     }

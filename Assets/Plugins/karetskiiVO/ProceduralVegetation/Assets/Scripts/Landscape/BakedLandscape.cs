@@ -7,23 +7,13 @@ using UnityEngine;
 
 namespace ProceduralVegetation {
     [Serializable]
-    public class BakedLandscape : ILandscapeDescriptor {
+    public class BakedLandscape : LandscapeDescriptor {
         // every pixel is a float32 [0...1]
         public Texture2D heightmap;
         public Vector2 texelSize;
-        public Vector3 center;
         public float minHeight, maxHeight;
 
-        public Bounds bbox => new Bounds(
-            center,
-            new Vector3(
-                texelSize.x * heightmap.width,
-                maxHeight - minHeight,
-                texelSize.y * heightmap.height
-            )
-        );
-
-        public float Height(Vector2 lpos) {
+        public override float Height(Vector2 lpos) {
             // TODO check width/height
             if (!bbox.Contains(new Vector3(lpos.x, bbox.center.y, lpos.y))) return float.NaN;
 
@@ -32,7 +22,7 @@ namespace ProceduralVegetation {
             return Mathf.Lerp(minHeight, maxHeight, t);
         }
 
-        public BakedLandscape Bake(ILandscapeDescriptor.BakeParams bakeParams) {
+        public override BakedLandscape Bake(BakeParams bakeParams) {
             return this;
         }
     }

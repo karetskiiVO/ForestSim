@@ -20,7 +20,7 @@ MonoBehaviour:
     values:
     - _fieldName: bakeParams
       _node: {fileID: -4005195196866629141}
-      _typeQualifiedName: ProceduralVegetation.ILandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
+      _typeQualifiedName: ProceduralVegetation.LandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
         Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
       connections:
       - fieldName: bakeParams
@@ -49,7 +49,7 @@ MonoBehaviour:
   m_Name: Ridged Noise Landscape
   m_EditorClassIdentifier: 
   graph: {fileID: 11400000}
-  position: {x: -152, y: 56}
+  position: {x: -120, y: 40}
   ports:
     keys:
     - bakeParams
@@ -57,15 +57,15 @@ MonoBehaviour:
     values:
     - _fieldName: bakeParams
       _node: {fileID: -2724086386251585526}
-      _typeQualifiedName: ProceduralVegetation.ILandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
+      _typeQualifiedName: ProceduralVegetation.LandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
         Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
       connections:
       - fieldName: bakeParams
         node: {fileID: -4005195196866629141}
         reroutePoints: []
       _direction: 0
-      _connectionType: 0
-      _typeConstraint: 0
+      _connectionType: 1
+      _typeConstraint: 2
       _dynamic: 0
     - _fieldName: landscape
       _node: {fileID: -2724086386251585526}
@@ -74,7 +74,7 @@ MonoBehaviour:
         Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
       connections:
       - fieldName: landscape
-        node: {fileID: 8875912786635010747}
+        node: {fileID: -1678090142241787649}
         reroutePoints: []
       _direction: 1
       _connectionType: 0
@@ -83,10 +83,9 @@ MonoBehaviour:
   bakeParams:
     resolution: {x: 0, y: 0}
   descriptor:
-    bounds:
+    bbox:
       m_Center: {x: 0, y: 0, z: 0}
-      m_Extent: {x: 100, y: 10, z: 100}
-    scale: 100
+      m_Extent: {x: 0, y: 0, z: 0}
     offset: {x: 0, y: 0}
     octaves: 8
     lacunarity: 2
@@ -105,7 +104,7 @@ MonoBehaviour:
   m_Name: Visualisation
   m_EditorClassIdentifier: 
   graph: {fileID: 11400000}
-  position: {x: 248, y: -184}
+  position: {x: 328, y: -184}
   ports:
     keys:
     - landscape
@@ -117,10 +116,10 @@ MonoBehaviour:
         Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
       connections:
       - fieldName: landscape
-        node: {fileID: -1009353469420690449}
+        node: {fileID: -2724086386251585526}
         reroutePoints: []
       _direction: 0
-      _connectionType: 0
+      _connectionType: 1
       _typeConstraint: 0
       _dynamic: 0
 --- !u!114 &-1009353469420690449
@@ -144,25 +143,22 @@ MonoBehaviour:
     values:
     - _fieldName: bakeParams
       _node: {fileID: -1009353469420690449}
-      _typeQualifiedName: ProceduralVegetation.ILandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
+      _typeQualifiedName: ProceduralVegetation.LandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
         Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
       connections:
       - fieldName: bakeParams
         node: {fileID: -4005195196866629141}
         reroutePoints: []
       _direction: 0
-      _connectionType: 0
-      _typeConstraint: 0
+      _connectionType: 1
+      _typeConstraint: 2
       _dynamic: 0
     - _fieldName: landscape
       _node: {fileID: -1009353469420690449}
       _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[ProceduralVegetation.BakedLandscape,
         Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
         Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-      connections:
-      - fieldName: landscape
-        node: {fileID: -1678090142241787649}
-        reroutePoints: []
+      connections: []
       _direction: 1
       _connectionType: 0
       _typeConstraint: 0
@@ -170,6 +166,9 @@ MonoBehaviour:
   bakeParams:
     resolution: {x: 0, y: 0}
   descriptor:
+    bbox:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0, y: 0, z: 0}
     center: {x: 0, y: 0}
     alpha: 1
     bounds:
@@ -192,35 +191,3 @@ MonoBehaviour:
   - {fileID: -1678090142241787649}
   - {fileID: -2724086386251585526}
   - {fileID: -1009353469420690449}
-  - {fileID: 8875912786635010747}
---- !u!114 &8875912786635010747
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da537e25018bf954a880ce8d3aedb11b, type: 3}
-  m_Name: Simulation
-  m_EditorClassIdentifier: 
-  graph: {fileID: 11400000}
-  position: {x: 232, y: 8}
-  ports:
-    keys:
-    - landscape
-    values:
-    - _fieldName: landscape
-      _node: {fileID: 8875912786635010747}
-      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[ProceduralVegetation.ILandscapeDescriptor,
-        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
-        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-      connections:
-      - fieldName: landscape
-        node: {fileID: -2724086386251585526}
-        reroutePoints: []
-      _direction: 0
-      _connectionType: 0
-      _typeConstraint: 0
-      _dynamic: 0

@@ -9,12 +9,12 @@ namespace ProceduralVegetation.Editor.Nodes {
     [CreateNodeMenu("Simulation")]
     public class SimulationNode : EditorNode, ISimulated {
         [Input]
-        public Descriptor<ILandscapeDescriptor> landscape;
+        public Descriptor<LandscapeDescriptor> landscape;
 
         public override void Evaluate() { }
 
         public void Simulate() {
-            Debug.Log(GetInputValue<Descriptor<ILandscapeDescriptor>>("landscape").descriptor);
+            Debug.Log(GetInputValue<Descriptor<LandscapeDescriptor>>("landscape").descriptor);
         }
     }
 }

@@ -9,7 +9,7 @@ namespace ProceduralVegetation.Editor.Nodes {
     class RidgedNoiseLandscapeNode : CoreLandscapeNode {
         public RidgedNoiseLandscapeDescriptor descriptor;
 
-        public override ILandscapeDescriptor GetLandscapeDescriptor() {
+        public override LandscapeDescriptor GetLandscapeDescriptor() {
             return descriptor;
         }
     }

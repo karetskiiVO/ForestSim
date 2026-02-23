@@ -6,9 +6,7 @@ using UnityEngine;
 
 namespace ProceduralVegetation {
     [Serializable]
-    public struct RidgedNoiseLandscapeDescriptor : ILandscapeDescriptor {
-        public Bounds bounds;
-
+    public class RidgedNoiseLandscapeDescriptor : LandscapeDescriptor {
         /// <summary>Смещение в пространстве шума</summary>
         public Vector2 offset;
         /// <summary>Количество октав</summary>
@@ -22,9 +20,7 @@ namespace ProceduralVegetation {
         /// <summary>Резкость гребней (усиление веса)</summary>
         public float sharpness;
 
-        public Bounds bbox => bounds;
-
-        public float Height(Vector2 lpos) {
+        public override float Height(Vector2 lpos) {
             if (!bbox.Contains(new Vector3(lpos.x, bbox.center.y, lpos.y))) return float.NaN;
 
             float s = Mathf.Max(bbox.extents.ToArray());
@@ -57,7 +53,7 @@ namespace ProceduralVegetation {
             }
 
             float t = maxValue > 0f ? result / maxValue : 0f;
-            return Mathf.Lerp(bounds.min.y, bounds.max.y, t);
+            return Mathf.Lerp(bbox.min.y, bbox.max.y, t);
         }
     }
 }

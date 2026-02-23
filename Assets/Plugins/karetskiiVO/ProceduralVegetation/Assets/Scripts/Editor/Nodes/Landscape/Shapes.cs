@@ -9,7 +9,7 @@ namespace ProceduralVegetation.Editor.Nodes {
     class ConeLandscapeNode : CoreLandscapeNode {
         public ConeLandscapeDescriptor descriptor;
 
-        public override ILandscapeDescriptor GetLandscapeDescriptor() {
+        public override LandscapeDescriptor GetLandscapeDescriptor() {
             return descriptor;
         }
     }

@@ -6,14 +6,12 @@ using UnityEngine;
 
 namespace ProceduralVegetation {
     [Serializable]
-    public struct ConeLandscapeDescriptor : ILandscapeDescriptor {
+    public class ConeLandscapeDescriptor : LandscapeDescriptor {
         public Vector2 center;
         public float alpha;
         public Bounds bounds;
 
-        public Bounds bbox => bounds;
-
-        public float Height(Vector2 lpos) {
+        public override float Height(Vector2 lpos) {
             if (!bbox.Contains(new Vector3(lpos.x, bbox.center.y, lpos.y))) return float.NaN;
 
             float centerHeight = (alpha > 0) ? bounds.max.y : bounds.min.y;
