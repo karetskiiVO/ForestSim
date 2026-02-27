@@ -1,37 +1,5 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-5785153361619043713
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
-  m_Name: BBOX Parameters
-  m_EditorClassIdentifier: Assembly-CSharp-Editor-firstpass:ProceduralVegetation.Editor.Nodes:BBOXParametersNode
-  graph: {fileID: 11400000}
-  position: {x: -488, y: 296}
-  ports:
-    keys:
-    - bbox
-    values:
-    - _fieldName: bbox
-      _node: {fileID: -5785153361619043713}
-      _typeQualifiedName: UnityEngine.Bounds, UnityEngine.CoreModule, Version=0.0.0.0,
-        Culture=neutral, PublicKeyToken=null
-      connections: []
-      _direction: 1
-      _connectionType: 0
-      _typeConstraint: 0
-      _dynamic: 0
-  bbox:
-    m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0, y: 0, z: 0}
-  center: {x: 0, y: 0, z: 0}
-  extents: {x: 100, y: 10, z: 100}
 --- !u!114 &-4005195196866629141
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -116,7 +84,7 @@ MonoBehaviour:
         Culture=neutral, PublicKeyToken=null
       connections:
       - fieldName: bbox
-        node: {fileID: 0}
+        node: {fileID: -877812635276936231}
         reroutePoints: []
       _direction: 0
       _connectionType: 1
@@ -219,9 +187,8 @@ MonoBehaviour:
   - {fileID: -1678090142241787649}
   - {fileID: -2724086386251585526}
   - {fileID: 6578840670708684539}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: -5785153361619043713}
+  - {fileID: -877812635276936231}
+  - {fileID: 5749870310896196181}
 --- !u!114 &5749870310896196181
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -295,7 +262,7 @@ MonoBehaviour:
         Culture=neutral, PublicKeyToken=null
       connections:
       - fieldName: bbox
-        node: {fileID: 0}
+        node: {fileID: -877812635276936231}
         reroutePoints: []
       _direction: 0
       _connectionType: 1
