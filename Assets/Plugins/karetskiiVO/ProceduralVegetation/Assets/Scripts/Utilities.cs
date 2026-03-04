@@ -70,6 +70,62 @@ namespace ProceduralVegetation.Utilities {
         }
     }
 
+    public static class RandomExtents {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool Chance(this System.Random random, float probability) {
+            return random.NextDouble() < probability;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T RandomElement<T>(this System.Random random, T[] list) {
+            if (list.Length == 0) throw new InvalidOperationException("Cannot select a random element from an empty list.");
+            return list[random.Next(list.Length)];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T RandomElement<T>(this System.Random random, IList<T> list) {
+            if (list.Count == 0) throw new InvalidOperationException("Cannot select a random element from an empty list.");
+            return list[random.Next(list.Count)];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 NextGaussian(this System.Random random, float stddev = 1f, Vector2 mean = default) {
+            double u1 = 1.0 - random.NextDouble();
+            double u2 = 1.0 - random.NextDouble();
+            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+            return new Vector2(
+                mean.x + stddev * (float)randStdNormal,
+                mean.y + stddev * (float)(Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2))
+            );
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 NextVector2(this System.Random random, Rect rect) {
+            return new Vector2(
+                (float)(rect.xMin + random.NextDouble() * rect.width),
+                (float)(rect.yMin + random.NextDouble() * rect.height)
+            );
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 NextVector2(this System.Random random, Bounds bounds) {
+            var rect = new Rect(bounds.min.xz(), bounds.size.xz());
+            return random.NextVector2(rect);
+        }
+    }
+
+    public static class GameObjectExtents {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static GameObject RemoveChildren(this GameObject parent) {
+            if (parent == null) return null;
+
+            for (int i = parent.transform.childCount - 1; i >= 0; i--) {
+                GameObject.DestroyImmediate(parent.transform.GetChild(i).gameObject);
+            }
+            return parent;
+        }
+    }
+
     public static class VectorExtents {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Dot(this Vector2Int a, Vector2Int b) => a.x * b.x + a.y * b.y;

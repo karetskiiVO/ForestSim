@@ -9,6 +9,7 @@ namespace ProceduralVegetation.Editor.Nodes {
         [Input(connectionType = ConnectionType.Override, typeConstraint = TypeConstraint.Strict)]
         public Descriptor<BakedLandscape> landscape;
         public GameObject parent = null;
+        public Material terrainMaterial = null;
 
         private const int MAX_TILE_RES = 513;
         private const string TERRAIN_PARENT_NAME = "GeneratedTerrain";
