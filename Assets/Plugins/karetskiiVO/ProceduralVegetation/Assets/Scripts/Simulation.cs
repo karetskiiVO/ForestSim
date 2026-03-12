@@ -117,7 +117,7 @@ namespace ProceduralVegetation {
             return this;
         }
 
-        public async Task Run(float simTime) {
+        public void Run(float simTime) {
             float currentTime = 0;
             for (float wholeYear = 0; wholeYear < simTime; wholeYear++) {
                 Debug.Log($"Simulating year {wholeYear}: Tree num: {simulationContext.points.Count}");
@@ -136,8 +136,6 @@ namespace ProceduralVegetation {
                     }
                     simEvent.Execute(ref simulationContext);
                 }
-
-                await Task.Yield();
             }
         }
 

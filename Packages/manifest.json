@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
     "com.github.siccity.xnode": "https://github.com/siccity/xNode.git",
     "com.simplycods.oneofunity": "https://github.com/Simply-Cods/OneOfUnity.git?path=/OneOfUnity#latest",
     "com.unity.collab-proxy": "2.8.2",

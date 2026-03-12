@@ -38,8 +38,8 @@ namespace ProceduralVegetation.Editor.Nodes {
 
         public float simulationTime = 100f;
 
-        public async void Simulate() {
-            var landscape = GetInputValue<Descriptor<BakedLandscape>>(nameof(this.inLandscape))?.descriptor;
+        public void Simulate() {
+            var landscape = GetInputValue<Descriptor<BakedLandscape>>(nameof(inLandscape))?.descriptor;
             Assert.IsNotNull(landscape);
 
             var oakPoints = Enumerable.Range(0, 5)
@@ -51,7 +51,7 @@ namespace ProceduralVegetation.Editor.Nodes {
                 .AddEventGenerator(new BaseEventGenerator())
                 .AddSpecies(new OakDescriptor(), oakPoints);
 
-            await simulation.Run(simulationTime);
+            simulation.Run(simulationTime);
 
             /// Debug
 
