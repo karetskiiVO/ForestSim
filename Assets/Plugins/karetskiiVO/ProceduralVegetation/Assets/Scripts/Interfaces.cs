@@ -75,6 +75,11 @@ namespace ProceduralVegetation {
         public virtual float NANStrategy(Vector2 lpos) => 0;
     }
 
+    public class LanscapeFruitfillness {
+        public Texture2D fruitfulnessMap;
+        public float fruitfulnessScale = 1f;
+    }
+
     public abstract class Scatter : IEnumerable<Vector2> {
         public abstract Vector2? Next();
         public abstract void Reset();

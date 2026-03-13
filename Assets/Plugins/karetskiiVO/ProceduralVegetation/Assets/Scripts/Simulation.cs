@@ -83,6 +83,7 @@ namespace ProceduralVegetation {
             public List<SimulationPoint> points;
 
             public BakedLandscape landscape;
+            public LanscapeFruitfillness fruitfulness;
         }
 
         public abstract class Event {
@@ -118,25 +119,45 @@ namespace ProceduralVegetation {
         }
 
         public void Run(float simTime) {
-            float currentTime = 0;
+            if (simulationContext.fruitfulness == null) {
+                simulationContext.fruitfulness = new LanscapeFruitfillness() {
+                    fruitfulnessMap = new Texture2D(1, 1, TextureFormat.RFloat, false) {
+                        filterMode = FilterMode.Point,
+                    },
+                    fruitfulnessScale = 20f,
+                };
+
+                simulationContext.fruitfulness.fruitfulnessMap.SetPixelData(new float[] { 1f }, 0);
+                simulationContext.fruitfulness.fruitfulnessMap.Apply();
+            }
+
             for (float wholeYear = 0; wholeYear < simTime; wholeYear++) {
-                Debug.Log($"Simulating year {wholeYear}: Tree num: {simulationContext.points.Count}");
+                var yearStartTime = currentTime + wholeYear;
+                var yearEndTime = Mathf.Min(yearStartTime + 1f, currentTime + simTime);
+
+                Debug.Log($"Simulating year {yearStartTime}: Tree num: {simulationContext.points.Count}");
                 foreach (var generator in eventGenerators) {
-                    var newEvents = generator.Generate(wholeYear);
+                    var newEvents = generator.Generate(yearStartTime);
                     foreach (var e in newEvents) {
-                        events.Enqueue(e, e.time);
+                        events.Enqueue(e, e.time + yearStartTime);
                     }
                 }
-                currentTime = wholeYear;
 
-                while (events.Count > 0 && events.Peek().time <= wholeYear + 1f) {
-                    var simEvent = events.Dequeue();
-                    if (simEvent.time < currentTime) {
+                while (events.Count > 0 && events.Peek().time <= yearEndTime) {
+                    if (!events.TryDequeue(out var simEvent, out var scheduledTime)) {
+                        break;
+                    }
+
+                    if (scheduledTime < currentTime) {
                         Debug.LogWarning($"Event `{simEvent.GetType()}` was is in the past");
                     }
+
+                    simEvent.time = scheduledTime;
                     simEvent.Execute(ref simulationContext);
                 }
             }
+
+            currentTime += simTime;
         }
 
         public IEnumerable<SimulationPointView> GetPointsView() {
@@ -148,6 +169,7 @@ namespace ProceduralVegetation {
         // TODO: make it possible to use multiple random generators with different seeds
         private static System.Random random = new(42);
         public static System.Random Random => random;
+        private float currentTime;
 
         private PriorityQueue<Event, float> events = new();
         private List<EventGenerator> eventGenerators = new();

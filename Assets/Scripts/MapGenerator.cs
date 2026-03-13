@@ -2,13 +2,15 @@ using System;
 using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
+
 using Sirenix.Utilities;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.Rendering;
 
-class MapGenerator : MonoBehaviour
-{
+class MapGenerator : MonoBehaviour {
     [SerializeField]
     Terrain terrain;
     [SerializeField]
@@ -102,8 +104,7 @@ class MapGenerator : MonoBehaviour
     Vector3 sunDirection;
 
     RenderTexture CalcLightmap(Texture heighmap) {
-        var lightmapRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat)
-        {
+        var lightmapRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat) {
             enableRandomWrite = true,
             filterMode = FilterMode.Point,
         };
@@ -126,14 +127,12 @@ class MapGenerator : MonoBehaviour
     }
 
     RenderTexture CalcMoiste(Texture heighmap, RenderTexture gradsField) {
-        var moistureRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat)
-        {
+        var moistureRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat) {
             enableRandomWrite = true,
             filterMode = FilterMode.Point,
         };
         moistureRTexture.Create();
-        var moistureBufRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat)
-        {
+        var moistureBufRTexture = new RenderTexture(heighmap.width, heighmap.height, 0, RenderTextureFormat.RFloat) {
             enableRandomWrite = true,
             filterMode = FilterMode.Point,
         };
@@ -153,8 +152,7 @@ class MapGenerator : MonoBehaviour
         moistureShader.SetTexture(moistureKernel, "Moisture", moistureRTexture);
         moistureShader.SetTexture(moistureKernel, "MoistureBuf", moistureBufRTexture);
 
-        for(int i = 0; i < iterations; i++)
-        {
+        for (int i = 0; i < iterations; i++) {
             moistureShader.SetVector("size", new Vector2(1, 1));
             moistureShader.SetVector("resolution", new Vector2(resolution.x, resolution.y));
             moistureShader.SetFloat("dt", dt);
@@ -181,8 +179,7 @@ class MapGenerator : MonoBehaviour
 
     RenderTexture CalcGrads(Texture heighmap) {
         var gradKernel = gradShader.FindKernel("grad");
-        var gradsRTexture = new RenderTexture(resolution.x, resolution.y, 0, RenderTextureFormat.RGFloat)
-        {
+        var gradsRTexture = new RenderTexture(resolution.x, resolution.y, 0, RenderTextureFormat.RGFloat) {
             enableRandomWrite = true,
             filterMode = FilterMode.Point,
         };
@@ -193,7 +190,7 @@ class MapGenerator : MonoBehaviour
 
         gradShader.SetTexture(gradKernel, "heighmap", heighmap);
         gradShader.SetTexture(gradKernel, "Result", gradsRTexture);
-        
+
         int gx = Mathf.CeilToInt(resolution.x / 8.0f);
         int gy = Mathf.CeilToInt(resolution.y / 8.0f);
 
@@ -206,8 +203,7 @@ class MapGenerator : MonoBehaviour
         RenderTexture renderTexture,
         Func<TextureData, Color> colorMapper,
         string outName = "debug")
-    where TextureData : struct
-    {
+    where TextureData : struct {
         RenderTexture.active = renderTexture;
         var textureRaw = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RFloat, false);
         textureRaw.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
@@ -221,8 +217,7 @@ class MapGenerator : MonoBehaviour
             .Select(colorMapper)
             .ToArray();
 
-        var texture = new Texture2D(renderTexture.width, renderTexture.height)
-        {
+        var texture = new Texture2D(renderTexture.width, renderTexture.height) {
             wrapMode = TextureWrapMode.Clamp,
         };
         texture.SetPixels(colors);
@@ -231,8 +226,7 @@ class MapGenerator : MonoBehaviour
         texture = TextureFlip.FlipHorizontal(texture);
         texture = TextureFlip.RotateTexture90CounterClockwise(texture);
 
-        var textureLayer = new TerrainLayer
-        {
+        var textureLayer = new TerrainLayer {
             diffuseTexture = texture,
             normalMapTexture = null,
             tileSize = new Vector2(terrain.terrainData.size.x, terrain.terrainData.size.z),
@@ -243,19 +237,19 @@ class MapGenerator : MonoBehaviour
         // 3. Splatmap с одним слоем — вес всегда 1.0
         float[,,] alphamap = new float[terrain.terrainData.alphamapWidth, terrain.terrainData.alphamapHeight, 1];
 
-        for (int x = 0; x < terrain.terrainData.alphamapWidth; x++)
-        {
-            for (int y = 0; y < terrain.terrainData.alphamapHeight; y++)
-            {
+        for (int x = 0; x < terrain.terrainData.alphamapWidth; x++) {
+            for (int y = 0; y < terrain.terrainData.alphamapHeight; y++) {
                 alphamap[x, y, 0] = 1.0f; // 100% вес для единственного слоя
             }
         }
 
         terrain.terrainData.SetAlphamaps(0, 0, alphamap);
 
-        string path = Path.Combine(Application.dataPath, outName+".png");
+        string path = Path.Combine(Application.dataPath, outName + ".png");
         File.WriteAllBytes(path, texture.EncodeToPNG());
+#if UNITY_EDITOR
         AssetDatabase.Refresh();
+#endif
     }
 
     float[,] CreateMap(System.Random random) {
@@ -300,7 +294,8 @@ class MapGenerator : MonoBehaviour
             float u = h < 8 ? x : y;
             float v = h < 4 ? y : (h == 12 || h == 14 ? x : z);
             return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
-        };
+        }
+        ;
 
         int xi = (int)MathF.Floor(p.x) & 255;
         int yi = (int)MathF.Floor(p.y) & 255;
@@ -334,147 +329,128 @@ class MapGenerator : MonoBehaviour
         return (lerp(w, y1, y2) + 1) / 2;
     }
 
-    public static class TextureFlip
-    {
+    public static class TextureFlip {
         // Зеркальное отражение по горизонтали
-        public static Texture2D FlipHorizontal(Texture2D original)
-        {
+        public static Texture2D FlipHorizontal(Texture2D original) {
             int width = original.width;
             int height = original.height;
-            
+
             Texture2D flipped = new Texture2D(width, height);
-            
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
+
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
                     // Берем пиксель из оригинальной позиции
                     Color pixel = original.GetPixel(x, y);
                     // Помещаем в зеркальную позицию по X
                     flipped.SetPixel(width - 1 - x, y, pixel);
                 }
             }
-            
+
             flipped.Apply();
             return flipped;
         }
 
-        public static Texture2D FlipVertical(Texture2D original)
-        {
+        public static Texture2D FlipVertical(Texture2D original) {
             int width = original.width;
             int height = original.height;
-            
+
             Texture2D flipped = new Texture2D(width, height);
-            
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
+
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
                     Color pixel = original.GetPixel(x, y);
                     // Помещаем в зеркальную позицию по Y
                     flipped.SetPixel(x, height - 1 - y, pixel);
                 }
             }
-            
+
             flipped.Apply();
             return flipped;
         }
 
-        public static Texture2D FlipBoth(Texture2D original)
-        {
+        public static Texture2D FlipBoth(Texture2D original) {
             int width = original.width;
             int height = original.height;
-            
+
             Texture2D flipped = new Texture2D(width, height);
-            
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
+
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
                     Color pixel = original.GetPixel(x, y);
                     // Отражаем и по X и по Y
                     flipped.SetPixel(width - 1 - x, height - 1 - y, pixel);
                 }
             }
-            
+
             flipped.Apply();
             return flipped;
         }
-    
-        public static Texture2D RotateTexture90Clockwise(Texture2D originalTexture)
-        {
+
+        public static Texture2D RotateTexture90Clockwise(Texture2D originalTexture) {
             Color32[] original = originalTexture.GetPixels32();
             Color32[] rotated = new Color32[original.Length];
-            
+
             int width = originalTexture.width;
             int height = originalTexture.height;
-            
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
+
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
                     int originalIndex = x + y * width;
                     int rotatedIndex = (height - 1 - y) + x * height;
                     rotated[rotatedIndex] = original[originalIndex];
                 }
             }
-            
+
             Texture2D rotatedTexture = new Texture2D(height, width);
             rotatedTexture.SetPixels32(rotated);
             rotatedTexture.Apply();
-            
+
             return rotatedTexture;
         }
 
         // Поворот на 90 градусов против часовой стрелки
-        public static Texture2D RotateTexture90CounterClockwise(Texture2D originalTexture)
-        {
+        public static Texture2D RotateTexture90CounterClockwise(Texture2D originalTexture) {
             Color32[] original = originalTexture.GetPixels32();
             Color32[] rotated = new Color32[original.Length];
-            
+
             int width = originalTexture.width;
             int height = originalTexture.height;
-            
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
+
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
                     int originalIndex = x + y * width;
                     int rotatedIndex = y + (width - 1 - x) * height;
                     rotated[rotatedIndex] = original[originalIndex];
                 }
             }
-            
+
             Texture2D rotatedTexture = new Texture2D(height, width);
             rotatedTexture.SetPixels32(rotated);
             rotatedTexture.Apply();
-            
+
             return rotatedTexture;
         }
 
         // Поворот на 180 градусов
-        public static Texture2D RotateTexture180(Texture2D originalTexture)
-        {
+        public static Texture2D RotateTexture180(Texture2D originalTexture) {
             Color32[] original = originalTexture.GetPixels32();
             Color32[] rotated = new Color32[original.Length];
-            
+
             int width = originalTexture.width;
             int height = originalTexture.height;
-            
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
+
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
                     int originalIndex = x + y * width;
                     int rotatedIndex = (width - 1 - x) + (height - 1 - y) * width;
                     rotated[rotatedIndex] = original[originalIndex];
                 }
             }
-            
+
             Texture2D rotatedTexture = new Texture2D(width, height);
             rotatedTexture.SetPixels32(rotated);
             rotatedTexture.Apply();
-            
+
             return rotatedTexture;
         }
     }

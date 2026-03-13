@@ -88,7 +88,7 @@ class RuntimeSimulation : MonoBehaviour {
 
         while (true) {
             simulation.Run(1);
-            await UniTask.Delay(TimeSpan.FromSeconds(2));
+            await UniTask.Delay(TimeSpan.FromSeconds(0.1));
         }
     }
 

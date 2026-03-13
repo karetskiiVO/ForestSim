@@ -2,14 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-using Sirenix.Utilities;
-
-
+using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
-
-using UnityEngine;
 #endif
 
 namespace ProceduralVegetation.Utilities {
