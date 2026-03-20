@@ -7,51 +7,14 @@ using Cysharp.Threading.Tasks;
 using ProceduralVegetation;
 using ProceduralVegetation.Utilities;
 
-using Sirenix.Utilities;
-
-using Unity.VisualScripting;
-
 using UnityEngine;
-using UnityEngine.SocialPlatforms;
 
 class RuntimeSimulation : MonoBehaviour {
     Simulation simulation;
     BakedLandscape bakedLandscape;
 
     [SerializeField]
-    GameObject[] seedOak;
-    [SerializeField]
-    GameObject[] smallOak;
-    [SerializeField]
-    GameObject[] matureOak;
-    [SerializeField]
-    GameObject[] deadOak;
-
-    (Mesh mesh, Material material)[] seedOakInstanceInfos => CollectMeshesFromChildren(seedOak);
-    (Mesh mesh, Material material)[] smallOakInstanceInfos => CollectMeshesFromChildren(smallOak);
-    (Mesh mesh, Material material)[] matureOakInstanceInfos => CollectMeshesFromChildren(matureOak);
-    (Mesh mesh, Material material)[] deadOakInstanceInfos => CollectMeshesFromChildren(deadOak);
-
-
-    private (Mesh mesh, Material material)[] CollectMeshesFromChildren(GameObject[] parents) {
-        var meshes = new List<(Mesh mesh, Material material)>();
-
-        foreach (var parent in parents) {
-            var meshFilters = parent.GetComponentsInChildren<MeshFilter>();
-            var meshRenderers = parent.GetComponentsInChildren<MeshRenderer>();
-
-            for (int i = 0; i < meshFilters.Length && i < meshRenderers.Length; i++) {
-                var mesh = meshFilters[i].sharedMesh;
-                var material = meshRenderers[i].sharedMaterial;
-
-                if (mesh != null && material != null) {
-                    meshes.Add((mesh, material));
-                }
-            }
-        }
-
-        return meshes.ToArray();
-    }
+    RuntimeSpeciesContainer[] speciesContainers;
 
     private void Start() {
         var landscape = new RidgedNoiseLandscapeDescriptor() {
@@ -78,13 +41,13 @@ class RuntimeSimulation : MonoBehaviour {
     }
 
     private async UniTaskVoid Run() {
-        var oakPoints = Enumerable.Range(0, 5)
-            .Select(_ => Simulation.Random.NextVector2(bakedLandscape.bbox))
-            .ToArray();
+        simulation.AddEventGenerator(new BaseEventGenerator());
 
-        simulation
-            .AddEventGenerator(new BaseEventGenerator())
-            .AddSpecies(new OakDescriptor(), oakPoints);
+        foreach (var speciesContainer in speciesContainers) {
+            var descriptor = speciesContainer.GetDescriptor();
+            var initialPoints = speciesContainer.GetInitialPoints(bakedLandscape);
+            simulation.AddSpecies(descriptor, initialPoints);
+        }
 
         while (true) {
             simulation.Run(1);
@@ -93,49 +56,22 @@ class RuntimeSimulation : MonoBehaviour {
     }
 
     private void DrawTrees() {
-        Dictionary<FoliageInstance.FoliageType, List<(Vector3 position, float rotationY)>> treePositions = new();
-
-        simulation.GetPointsView().ForEach(point => {
+        foreach (var point in simulation.GetPointsView()) {
             float h = bakedLandscape.Height(point.position);
-            if (float.IsNaN(h)) return;
+            if (float.IsNaN(h)) {
+                continue;
+            }
 
             var instancePosition = new Vector3(point.position.x, h, point.position.y);
             var instanceHash = instancePosition.GetHashCode() ^ point.type.GetHashCode();
-            var rotation = (instanceHash % 36000) / 100f;
 
-            if (!treePositions.ContainsKey(point.type)) {
-                treePositions[point.type] = new List<(Vector3 position, float rotationY)>();
+            foreach (var speciesContainer in speciesContainers) {
+                speciesContainer.HandlePointView(point, instancePosition);
             }
+        }
 
-            treePositions[point.type].Add((instancePosition, rotation));
-        });
-
-        foreach (var (treeType, positions) in treePositions) {
-            var instanceInfos = treeType switch {
-                FoliageInstance.FoliageType.Seed => seedOakInstanceInfos,
-                FoliageInstance.FoliageType.Sapling => smallOakInstanceInfos,
-                FoliageInstance.FoliageType.Mature => matureOakInstanceInfos,
-                FoliageInstance.FoliageType.Dying => deadOakInstanceInfos,
-                _ => new (Mesh mesh, Material material)[0]
-            };
-
-            if (instanceInfos.Length == 0 || positions.Count == 0) continue;
-
-            var matrices = new Matrix4x4[positions.Count];
-            for (int i = 0; i < positions.Count; i++) {
-                var (position, rotationY) = positions[i];
-                matrices[i] = Matrix4x4.TRS(
-                    position,
-                    Quaternion.Euler(0, rotationY, 0),
-                    Vector3.one
-                );
-            }
-
-            foreach (var (mesh, material) in instanceInfos) {
-                if (mesh != null && material != null) {
-                    Graphics.DrawMeshInstanced(mesh, 0, material, matrices);
-                }
-            }
+        foreach (var speciesContainer in speciesContainers) {
+            speciesContainer.Flush();
         }
     }
 

@@ -13,7 +13,7 @@ namespace ProceduralVegetation {
         // TODO: remove allocations
         public abstract FoliageInstance[] Seed(ref FoliageInstance instance /* TODO: landscape */ );
         public abstract bool Alive(in FoliageInstance instance);
-        public abstract void AddResources(ref FoliageInstance instance, float energy, float water);
+            public abstract void AddResources(ref FoliageInstance instance, float energy, float water, float light);
         public abstract FoliageInstance CreateSeed(Vector2 position);
     }
 
@@ -84,6 +84,8 @@ namespace ProceduralVegetation {
 
             public BakedLandscape landscape;
             public LanscapeFruitfillness fruitfulness;
+            public LanscapeWater water;
+            public LanscapeLighting lighting;
         }
 
         public abstract class Event {
@@ -115,6 +117,21 @@ namespace ProceduralVegetation {
 
         public Simulation SetLandscape(BakedLandscape landscape) {
             simulationContext.landscape = landscape;
+            return this;
+        }
+
+        public Simulation SetFruitfulness(LanscapeFruitfillness fruitfulness) {
+            simulationContext.fruitfulness = fruitfulness;
+            return this;
+        }
+
+        public Simulation SetWater(LanscapeWater water) {
+            simulationContext.water = water;
+            return this;
+        }
+
+        public Simulation SetLighting(LanscapeLighting lighting) {
+            simulationContext.lighting = lighting;
             return this;
         }
 

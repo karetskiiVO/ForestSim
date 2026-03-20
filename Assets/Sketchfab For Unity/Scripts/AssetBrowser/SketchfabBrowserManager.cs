@@ -96,14 +96,6 @@ namespace Sketchfab
 			hasAnimation = node["animationCount"].AsInt > 0 ? "Yes" : "No";
 			licenseJson = node["license"].AsObject;
 
-			// "My models" results don't have any license as they are "private download"
-			// for the author.
-			if(licenseJson.ToString() == "{}")
-			{
-				isModelAvailable = archiveSize > 0;
-				return;
-			}
-
 			formattedLicenseRequirements = licenseJson["requirements"];
 
 			if (formattedLicenseRequirements.Length > 0)

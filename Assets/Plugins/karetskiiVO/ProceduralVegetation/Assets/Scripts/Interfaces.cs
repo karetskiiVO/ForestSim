@@ -80,6 +80,16 @@ namespace ProceduralVegetation {
         public float fruitfulnessScale = 1f;
     }
 
+    public class LanscapeWater {
+        public Texture2D waterMap;
+        public float waterScale = 1f;
+    }
+
+    public class LanscapeLighting {
+        public Texture2D lightMap;
+        public float lightScale = 1f;
+    }
+
     public abstract class Scatter : IEnumerable<Vector2> {
         public abstract Vector2? Next();
         public abstract void Reset();

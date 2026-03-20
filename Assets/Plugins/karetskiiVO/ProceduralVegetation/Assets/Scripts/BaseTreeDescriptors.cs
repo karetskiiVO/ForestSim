@@ -15,10 +15,10 @@ namespace ProceduralVegetation {
         public float MatureAgeForMaintenanceMin = 50f;
         public float MatureStressRecoveryPerYear = 0.05f;
 
-        public override void AddResources(ref FoliageInstance instance, float energy, float water) {
+        public override void AddResources(ref FoliageInstance instance, float energy, float water, float light) {
             if (instance.type == FoliageInstance.FoliageType.Dying || instance.type == FoliageInstance.FoliageType.Seed) return;
 
-            instance.energy += energy * 0.8f;
+            instance.energy += energy * 0.8f + light * 0.2f;
             instance.stress += water < 0.5f ? (0.5f - water) * 0.5f : 0;
         }
 

@@ -318,6 +318,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1776596492}
   - component: {fileID: 1776596491}
+  - component: {fileID: 1776596493}
   m_Layer: 0
   m_Name: RuntimeSimulator
   m_TagString: Untagged
@@ -337,22 +338,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b96beee6164541349a7aacb43d6d5eb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  seedOak:
-  - {fileID: 5437577865375381, guid: 6902b1749df63944cb57e58ca5598036, type: 3}
-  - {fileID: 6014836131881274346, guid: 70b97cec7993ea64c8ab794164cfb733, type: 3}
-  - {fileID: 1244576742116161536, guid: ed8c833bd81c85f43927b3423f1011dc, type: 3}
-  smallOak:
-  - {fileID: 5926470839408134633, guid: d2601af68e5bb0a46b812b13c5a3fad9, type: 3}
-  - {fileID: 3997548091749270922, guid: c8e9b44f56c3d564bbfd9493b0806af9, type: 3}
-  - {fileID: 469995303464597940, guid: 0d9f8356f1734624d9678cc49201da31, type: 3}
-  matureOak:
-  - {fileID: 7923432413657774718, guid: aa5803d143eb26a4bbf4fc43e5b4690b, type: 3}
-  - {fileID: 6799969341204333130, guid: 1d2fc1cc719a51f428f3d26b4fc42bfe, type: 3}
-  - {fileID: 3987728908495346955, guid: 5deef17b3cb411f46ad6df05d479722f, type: 3}
-  - {fileID: 5695590730908173349, guid: bf277c3287db8e04d9548a7e848374a0, type: 3}
-  - {fileID: 5552785855824891056, guid: 4bd0f56da08f56a47af4891e84128774, type: 3}
-  - {fileID: 3575812591211164585, guid: c3d270a5170b02d4badf3d7305ff755c, type: 3}
-  deadOak: []
+  speciesContainers:
+  - {fileID: 1776596493}
 --- !u!4 &1776596492
 Transform:
   m_ObjectHideFlags: 0
@@ -368,6 +355,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1776596493
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776596490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0cc44324f154924999e79fe90fe7474, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  seedOak: []
+  smallOak: []
+  matureOak: []
+  deadOak: []
+  initialPointsCount: 5
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

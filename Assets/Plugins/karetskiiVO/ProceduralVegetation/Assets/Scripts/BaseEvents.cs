@@ -81,7 +81,21 @@ namespace ProceduralVegetation {
             if (n == 0) return;
 
             Rect clipRect = ComputeClipRect(ctx);
-            var sampler = FruitfulnessSampler.Create(ctx, clipRect);
+            var fruitSampler = MapSampler.Create(
+                ctx.fruitfulness?.fruitfulnessMap,
+                ctx.fruitfulness?.fruitfulnessScale ?? 1f,
+                clipRect
+            );
+            var waterSampler = MapSampler.Create(
+                ctx.water?.waterMap,
+                ctx.water?.waterScale ?? 1f,
+                clipRect
+            );
+            var lightSampler = MapSampler.Create(
+                ctx.lighting?.lightMap,
+                ctx.lighting?.lightScale ?? 1f,
+                clipRect
+            );
 
             var activeIndices = new List<int>(n);
             for (int i = 0; i < n; i++) {
@@ -93,7 +107,7 @@ namespace ProceduralVegetation {
             }
 
             if (activeIndices.Count == 0) return;
-            if (!sampler.hasMap || !EnsureIntegralKernelReady()) return;
+            if (!fruitSampler.hasMap || !EnsureIntegralKernelReady()) return;
 
             var polygons = new List<Vector2>[activeIndices.Count];
 
@@ -123,20 +137,33 @@ namespace ProceduralVegetation {
                 }
             }
 
-            float[] integrals = IntegratePolygonsGpu(polygons, sampler);
-            if (integrals == null) return;
+            float[] fruitIntegrals = IntegratePolygonsGpu(polygons, fruitSampler);
+            if (fruitIntegrals == null) return;
+
+            float[] waterIntegrals = waterSampler.hasMap
+                ? IntegratePolygonsGpu(polygons, waterSampler)
+                : fruitIntegrals;
+            if (waterSampler.hasMap && waterIntegrals == null) return;
+
+            float[] lightIntegrals = lightSampler.hasMap
+                ? IntegratePolygonsGpu(polygons, lightSampler)
+                : fruitIntegrals;
+            if (lightSampler.hasMap && lightIntegrals == null) return;
 
             for (int j = 0; j < activeIndices.Count; j++) {
-                float integral = integrals[j];
+                float energyIntegral = fruitIntegrals[j];
+                float waterIntegral = waterIntegrals[j];
+                float lightIntegral = lightIntegrals[j];
 
-                if (integral <= 0f) continue;
+                if (energyIntegral <= 0f && waterIntegral <= 0f && lightIntegral <= 0f) continue;
 
                 int pointIdx = activeIndices[j];
                 var point = ctx.points[pointIdx];
                 ctx.speciesDescriptors[point.speciesID].AddResources(
                     ref point.foliageInstance,
-                    integral * sampler.scale,
-                    integral * waterFromIntegral
+                    energyIntegral * fruitSampler.scale,
+                    waterIntegral * (waterSampler.hasMap ? waterSampler.scale : 1f) * waterFromIntegral,
+                    lightIntegral * (lightSampler.hasMap ? lightSampler.scale : 1f)
                 );
                 ctx.points[pointIdx] = point;
             }
@@ -178,7 +205,7 @@ namespace ProceduralVegetation {
             return new Rect(bb.min.x, bb.min.z, bb.size.x, bb.size.z);
         }
 
-        private struct FruitfulnessSampler {
+        private struct MapSampler {
             public bool hasMap;
             public Texture2D map;
             public int width;
@@ -187,11 +214,8 @@ namespace ProceduralVegetation {
             public float texelArea;
             public float scale;
 
-            public static FruitfulnessSampler Create(in SimulationContext ctx, Rect worldRect) {
-                Texture2D map = ctx.fruitfulness?.fruitfulnessMap;
-                float scale = ctx.fruitfulness?.fruitfulnessScale ?? 1f;
-
-                return new FruitfulnessSampler {
+            public static MapSampler Create(Texture2D map, float scale, Rect worldRect) {
+                return new MapSampler {
                     hasMap = map != null,
                     map = map,
                     width = map != null ? map.width : 0,
@@ -205,7 +229,7 @@ namespace ProceduralVegetation {
             }
         }
 
-        private static float[] IntegratePolygonsGpu(List<Vector2>[] polygons, in FruitfulnessSampler sampler) {
+        private static float[] IntegratePolygonsGpu(List<Vector2>[] polygons, in MapSampler sampler) {
             if (!sampler.hasMap || sampler.map == null) {
                 return null;
             }
@@ -252,7 +276,7 @@ namespace ProceduralVegetation {
             }
         }
 
-        private static RenderTexture BakeCellIndexMap(List<Vector2>[] polygons, in FruitfulnessSampler sampler) {
+        private static RenderTexture BakeCellIndexMap(List<Vector2>[] polygons, in MapSampler sampler) {
             if (!EnsureCellIndexBakeMaterialReady()) {
                 return null;
             }
