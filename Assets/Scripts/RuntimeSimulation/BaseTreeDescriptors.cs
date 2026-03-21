@@ -9,18 +9,6 @@ namespace ProceduralVegetation {
         private const float SeedStartEnergy = 1f;
         private const float SeedDecayPerYear = 0.16f;
         private const float SeedStartStrength = 0.2f;
-
-        private const float SaplingBaseUpkeep = 0.015f;
-        private const float SaplingStrengthUpkeep = 0.015f;
-        private const float SaplingBaseGrowth = 0.025f;
-        private const float SaplingGrowthScale = 0.035f;
-        private const float SaplingEnergyLoss = 0.18f;
-
-        private const float MatureBaseUpkeep = 0.018f;
-        private const float MatureStrengthUpkeep = 0.017f;
-        private const float MatureBaseGrowth = 0.012f;
-        private const float MatureGrowthScale = 0.018f;
-        private const float MatureEnergyLoss = 0.12f;
         private const float MaxStrength = 3f;
 
         private const float BaseEnergyGainFactor = 0.55f;
@@ -30,15 +18,10 @@ namespace ProceduralVegetation {
 
         private const float IdealWater = 0.4f;
         private const float IdealLight = 0.3f;
-        private const float WaterStressSensitivity = 0.28f;
-        private const float LightStressSensitivity = 0.18f;
-        private const float StressAccumulationScale = 0.15f;
 
         private const float MinEnergyToSeed = 0.35f;
         private const float SeedEnergyCost = 0.12f;
         private const float BaseSeedingRate = 0.55f;
-        private const float RecoveryBase = 0.04f;
-        private const float RecoveryScale = 0.03f;
         private const float MinSpreadRadius = 2f;
         private const float LongDistanceSeedChanceBase = 0.22f;
         private const float LongDistanceSigmaMultiplier = 3.6f;
@@ -54,6 +37,29 @@ namespace ProceduralVegetation {
 
         private int populationCount;
 
+        // Species-specific parameters (can be overridden)
+        protected virtual float SaplingBaseUpkeep => 0.008f;
+        protected virtual float SaplingStrengthUpkeep => 0.008f;
+        protected virtual float SaplingBaseGrowth => 0.025f;
+        protected virtual float SaplingGrowthScale => 0.035f;
+        protected virtual float SaplingEnergyLoss => 0.11f;
+
+        protected virtual float MatureBaseUpkeep => 0.009f;
+        protected virtual float MatureStrengthUpkeep => 0.009f;
+        protected virtual float MatureBaseGrowth => 0.012f;
+        protected virtual float MatureGrowthScale => 0.018f;
+        protected virtual float MatureEnergyLoss => 0.08f;
+
+        protected virtual float WaterStressSensitivity => 0.25f;
+        protected virtual float LightStressSensitivity => 0.15f;
+        protected virtual float StressAccumulationScale => 0.125f;
+
+        protected virtual float RecoveryBase => 0.04f;
+        protected virtual float RecoveryScale => 0.03f;
+
+        // Age-related death rates
+        protected virtual float AgeDeathEnergyRate => 0.02f;  // Energy threshold declines by this per year
+        protected virtual float AgeDeathStressRate => 0.015f; // Stress tolerance declines by this per year
         protected CompetitiveTreeDescriptor(
             float growthFactor,
             float seedFactor,
@@ -93,9 +99,13 @@ namespace ProceduralVegetation {
                 case FoliageInstance.FoliageType.Seed:
                     return instance.energy > 0f;
                 case FoliageInstance.FoliageType.Sapling:
-                    return instance.energy > -0.15f && instance.stress < stressTolerance * 1.6f;
+                    float saplingEnergyThreshold = -0.15f - instance.age * AgeDeathEnergyRate * 0.5f;
+                    float saplingStressThreshold = stressTolerance * (1.65f - instance.age * AgeDeathStressRate * 0.3f);
+                    return instance.energy > saplingEnergyThreshold && instance.stress < saplingStressThreshold;
                 case FoliageInstance.FoliageType.Mature:
-                    return instance.energy > -0.05f && instance.stress < stressTolerance * 1.2f;
+                    float matureEnergyThreshold = -0.08f - instance.age * AgeDeathEnergyRate;
+                    float matureStressThreshold = stressTolerance * (1.25f - instance.age * AgeDeathStressRate);
+                    return instance.energy > matureEnergyThreshold && instance.stress < matureStressThreshold;
                 default:
                     return false;
             }
@@ -250,25 +260,91 @@ namespace ProceduralVegetation {
 
     public class OakDescriptor : CompetitiveTreeDescriptor {
         public OakDescriptor() : base(growthFactor: 0.55f, seedFactor: 0.58f, spreadSigma: 7f, stressTolerance: 2.2f, matureAge: 6f, softPopulationCap: 220f) { }
+
+        // Oak: hardwood, stress-resistant, nearly unlimited lifespan
+        protected override float SaplingBaseUpkeep => 0.009f;
+        protected override float SaplingStrengthUpkeep => 0.008f;
+        protected override float SaplingEnergyLoss => 0.11f;
+        protected override float MatureBaseUpkeep => 0.010f;
+        protected override float MatureStrengthUpkeep => 0.009f;
+        protected override float MatureEnergyLoss => 0.08f;
+        protected override float WaterStressSensitivity => 0.23f;
+        protected override float LightStressSensitivity => 0.15f;
+        protected override float AgeDeathEnergyRate => 0.00001f;  // ~unlimited lifespan
+        protected override float AgeDeathStressRate => 0.00001f;
     }
 
     public class SpruceDescriptor : CompetitiveTreeDescriptor {
         public SpruceDescriptor() : base(growthFactor: 0.52f, seedFactor: 0.62f, spreadSigma: 8f, stressTolerance: 2.3f, matureAge: 7f, softPopulationCap: 240f) { }
+
+        // Spruce: conifer, moderate upkeep, ~250 year lifespan
+        protected override float SaplingBaseUpkeep => 0.009f;
+        protected override float SaplingStrengthUpkeep => 0.008f;
+        protected override float SaplingEnergyLoss => 0.11f;
+        protected override float MatureBaseUpkeep => 0.010f;
+        protected override float MatureStrengthUpkeep => 0.009f;
+        protected override float MatureEnergyLoss => 0.08f;
+        protected override float WaterStressSensitivity => 0.25f;
+        protected override float LightStressSensitivity => 0.17f;
+        protected override float AgeDeathEnergyRate => 0.008f;   // Dies around 250 years
+        protected override float AgeDeathStressRate => 0.005f;
     }
 
     public class PineDescriptor : CompetitiveTreeDescriptor {
         public PineDescriptor() : base(growthFactor: 0.5f, seedFactor: 0.58f, spreadSigma: 8f, stressTolerance: 2.0f, matureAge: 5f, softPopulationCap: 210f) { }
+
+        // Pine: hardy, lower stress sensitivity
+        protected override float SaplingBaseUpkeep => 0.008f;
+        protected override float SaplingStrengthUpkeep => 0.008f;
+        protected override float SaplingEnergyLoss => 0.11f;
+        protected override float MatureBaseUpkeep => 0.010f;
+        protected override float MatureStrengthUpkeep => 0.009f;
+        protected override float MatureEnergyLoss => 0.08f;
+        protected override float WaterStressSensitivity => 0.24f;
+        protected override float LightStressSensitivity => 0.16f;
     }
 
     public class LindenDescriptor : CompetitiveTreeDescriptor {
         public LindenDescriptor() : base(growthFactor: 0.54f, seedFactor: 0.6f, spreadSigma: 8.5f, stressTolerance: 2.2f, matureAge: 6f, softPopulationCap: 230f) { }
+
+        // Linden: shade-tolerant, higher stress tolerance
+        protected override float SaplingBaseUpkeep => 0.009f;
+        protected override float SaplingStrengthUpkeep => 0.008f;
+        protected override float SaplingEnergyLoss => 0.11f;
+        protected override float MatureBaseUpkeep => 0.010f;
+        protected override float MatureStrengthUpkeep => 0.009f;
+        protected override float MatureEnergyLoss => 0.08f;
+        protected override float WaterStressSensitivity => 0.26f;
+        protected override float LightStressSensitivity => 0.18f;
     }
 
     public class BirchDescriptor : CompetitiveTreeDescriptor {
         public BirchDescriptor() : base(growthFactor: 0.56f, seedFactor: 0.64f, spreadSigma: 8f, stressTolerance: 2.0f, matureAge: 5f, softPopulationCap: 225f) { }
+
+        // Birch: pioneer, higher upkeep but resilient, ~125 year lifespan
+        protected override float SaplingBaseUpkeep => 0.010f;
+        protected override float SaplingStrengthUpkeep => 0.009f;
+        protected override float SaplingEnergyLoss => 0.12f;
+        protected override float MatureBaseUpkeep => 0.011f;
+        protected override float MatureStrengthUpkeep => 0.010f;
+        protected override float MatureEnergyLoss => 0.09f;
+        protected override float WaterStressSensitivity => 0.27f;
+        protected override float LightStressSensitivity => 0.19f;
+        protected override float AgeDeathEnergyRate => 0.016f;   // Dies around 125 years
+        protected override float AgeDeathStressRate => 0.01f;
     }
 
     public class BushDescriptor : CompetitiveTreeDescriptor {
         public BushDescriptor() : base(growthFactor: 0.62f, seedFactor: 0.75f, spreadSigma: 6f, stressTolerance: 2.0f, matureAge: 4f, softPopulationCap: 300f) { }
+
+        // Bush: early succession, low upkeep, fragile
+        protected override float SaplingBaseUpkeep => 0.008f;
+        protected override float SaplingStrengthUpkeep => 0.007f;
+        protected override float SaplingEnergyLoss => 0.11f;
+        protected override float MatureBaseUpkeep => 0.011f;
+        protected override float MatureStrengthUpkeep => 0.010f;
+        protected override float MatureEnergyLoss => 0.09f;
+        protected override float WaterStressSensitivity => 0.29f;
+        protected override float LightStressSensitivity => 0.19f;
     }
 }
