@@ -2,18 +2,11 @@ using System;
 using System.Collections.Generic;
 
 using ProceduralVegetation;
-using ProceduralVegetation.Utilities;
-
-using Sirenix.OdinInspector;
 
 using UnityEngine;
 using UnityEngine.Serialization;
 
 public abstract class PrefabSpeciesContainerBase : RuntimeSpeciesContainer {
-    [SerializeField]
-    [OnValueChanged(nameof(SetupSeed))]
-    private string seed = "";
-
     [SerializeField, Min(1)]
     private int initialPopulation = 6;
 
@@ -44,22 +37,24 @@ public abstract class PrefabSpeciesContainerBase : RuntimeSpeciesContainer {
     [FormerlySerializedAs("matureBush")]
     private GameObject[] maturePrefabs;
 
+    [Header("Visual Growth")]
+    [SerializeField]
+    private Vector2 seedScaleRange = new(0.25f, 0.45f);
+
+    [SerializeField]
+    private Vector2 saplingScaleRange = new(0.55f, 0.9f);
+
+    [SerializeField]
+    private Vector2 matureScaleRange = new(0.95f, 1.35f);
+
+    [SerializeField, Range(0f, 15f)]
+    private float maxRandomYaw = 8f;
+
     private readonly List<GameObject> instances = new();
     private readonly List<GameObject> futureInstances = new();
 
-    private System.Random random = new();
     private TreeSpeciesDescriptor descriptor;
     private bool missingPrefabWarningLogged;
-
-    private void Awake() {
-        SetupSeed();
-    }
-
-    private void SetupSeed() {
-        random = string.IsNullOrEmpty(seed)
-            ? new System.Random()
-            : new System.Random(StableHash(seed));
-    }
 
     public override TreeSpeciesDescriptor GetDescriptor() {
         descriptor ??= CreateDescriptor();
@@ -67,9 +62,23 @@ public abstract class PrefabSpeciesContainerBase : RuntimeSpeciesContainer {
     }
 
     public override Vector2[] GetInitialPoints(Bounds landscapeBounds) {
+        if (initialPopulation <= 0) {
+            return Array.Empty<Vector2>();
+        }
+
         var points = new Vector2[initialPopulation];
+        int grid = Mathf.CeilToInt(Mathf.Sqrt(initialPopulation));
+        float stepX = landscapeBounds.size.x / (grid + 1f);
+        float stepY = landscapeBounds.size.z / (grid + 1f);
+        Vector2 min = new Vector2(landscapeBounds.min.x, landscapeBounds.min.z);
+
         for (int i = 0; i < points.Length; i++) {
-            points[i] = random.NextVector2(landscapeBounds);
+            int x = i % grid;
+            int y = i / grid;
+            points[i] = new Vector2(
+                min.x + (x + 1) * stepX,
+                min.y + (y + 1) * stepY
+            );
         }
 
         return points;
@@ -80,10 +89,7 @@ public abstract class PrefabSpeciesContainerBase : RuntimeSpeciesContainer {
             return;
         }
 
-        int pointHash = PointHash(point);
-        int rotationY = ((pointHash % 360) + 360) % 360;
-
-        var prefab = ResolvePrefab(point.type, pointHash);
+        var prefab = ResolvePrefab(point.type, 0);
         if (prefab == null) {
             if (!missingPrefabWarningLogged) {
                 missingPrefabWarningLogged = true;
@@ -92,8 +98,9 @@ public abstract class PrefabSpeciesContainerBase : RuntimeSpeciesContainer {
             return;
         }
 
-        var instance = Instantiate(prefab, instancePosition, Quaternion.Euler(0f, rotationY, 0f), transform);
-        ApplyTransform(point, pointHash, instance.transform);
+        float yaw = maxRandomYaw > 0f ? GetHash01(point.position, 0x4A7C15) * maxRandomYaw : 0f;
+        var instance = Instantiate(prefab, instancePosition, Quaternion.Euler(0f, yaw, 0f), transform);
+        ApplyTransform(point, 0, instance.transform);
         futureInstances.Add(instance);
         instance.SetActive(false);
     }
@@ -121,45 +128,66 @@ public abstract class PrefabSpeciesContainerBase : RuntimeSpeciesContainer {
         futureInstances.Clear();
     }
 
-    protected virtual void ApplyTransform(Simulation.SimulationPointView point, int pointHash, Transform instanceTransform) { }
+    protected virtual void ApplyTransform(Simulation.SimulationPointView point, int pointHash, Transform instanceTransform) {
+        Vector2 range = point.type switch {
+            FoliageInstance.FoliageType.Seed => seedScaleRange,
+            FoliageInstance.FoliageType.Sapling => saplingScaleRange,
+            FoliageInstance.FoliageType.Mature => matureScaleRange,
+            _ => matureScaleRange,
+        };
+
+        float strengthT = Mathf.Clamp01(point.strength / 3f);
+        float ageT = Mathf.Clamp01(point.age / 12f);
+
+        // For seeds use age, for saplings use blend, for mature use strength
+        float t = point.type switch {
+            FoliageInstance.FoliageType.Seed => ageT,
+            FoliageInstance.FoliageType.Sapling => Mathf.Clamp01(strengthT * 0.5f + ageT * 0.5f),
+            FoliageInstance.FoliageType.Mature => strengthT,
+            _ => strengthT,
+        };
+
+        float baseScale = Mathf.Lerp(range.x, range.y, t);
+        float jitter = Mathf.Lerp(0.92f, 1.08f, GetHash01(point.position, 0x7F4A9D));
+        float finalScale = Mathf.Max(0.01f, baseScale * jitter);
+
+        instanceTransform.localScale = Vector3.one * finalScale;
+    }
 
     protected virtual GameObject ResolvePrefab(FoliageInstance.FoliageType type, int hash) {
+        static GameObject FirstAssigned(GameObject[] prefabs) {
+            if (prefabs == null) {
+                return null;
+            }
+
+            for (int i = 0; i < prefabs.Length; i++) {
+                if (prefabs[i] != null) {
+                    return prefabs[i];
+                }
+            }
+
+            return null;
+        }
+
         return type switch {
-            FoliageInstance.FoliageType.Seed => seedPrefabs.AtCyclic(hash),
-            FoliageInstance.FoliageType.Sapling => saplingPrefabs.AtCyclic(hash),
-            FoliageInstance.FoliageType.Mature => maturePrefabs.AtCyclic(hash),
+            FoliageInstance.FoliageType.Seed => FirstAssigned(seedPrefabs),
+            FoliageInstance.FoliageType.Sapling => FirstAssigned(saplingPrefabs),
+            FoliageInstance.FoliageType.Mature => FirstAssigned(maturePrefabs),
             _ => null,
         };
     }
 
     protected abstract TreeSpeciesDescriptor CreateDescriptor();
 
-    protected static float HashTo01(int hash) {
-        uint normalized = unchecked((uint)hash);
-        return normalized / (float)uint.MaxValue;
-    }
-
-    private static int PointHash(Simulation.SimulationPointView point) {
-        int px = Mathf.RoundToInt(point.position.x * 100f);
-        int py = Mathf.RoundToInt(point.position.y * 100f);
-
+    private static float GetHash01(Vector2 position, int seed) {
         unchecked {
-            int hash = 17;
-            hash = hash * 31 + px;
-            hash = hash * 31 + py;
-            hash = hash * 31 + (int)point.type;
-            return hash;
-        }
-    }
-
-    private static int StableHash(string value) {
-        unchecked {
-            int hash = 23;
-            for (int i = 0; i < value.Length; i++) {
-                hash = hash * 31 + value[i];
-            }
-
-            return hash;
+            int x = Mathf.RoundToInt(position.x * 100f);
+            int y = Mathf.RoundToInt(position.y * 100f);
+            int hash = seed;
+            hash = (hash * 397) ^ x;
+            hash = (hash * 397) ^ y;
+            uint u = (uint)hash;
+            return (u & 0x00FFFFFF) / 16777215f;
         }
     }
 }
