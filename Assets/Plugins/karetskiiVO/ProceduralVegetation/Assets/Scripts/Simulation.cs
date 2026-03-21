@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 
 using ProceduralVegetation.Core;
@@ -12,8 +13,17 @@ namespace ProceduralVegetation {
         public abstract void Grow(ref FoliageInstance instance);
         // TODO: remove allocations
         public abstract FoliageInstance[] Seed(ref FoliageInstance instance /* TODO: landscape */ );
+        public virtual void ResetPopulationCounters() { }
+        public virtual void RegisterInstance(in FoliageInstance instance) { }
+        public virtual int PopulationCount => 0;
+        public virtual FoliageInstance[] ScaleSeedsByPopulation(
+            FoliageInstance[] seeds,
+            in FoliageInstance parentInstance
+        ) {
+            return seeds;
+        }
         public abstract bool Alive(in FoliageInstance instance);
-            public abstract void AddResources(ref FoliageInstance instance, float energy, float water, float light);
+        public abstract void AddResources(ref FoliageInstance instance, float energy, float water, float light);
         public abstract FoliageInstance CreateSeed(Vector2 position);
     }
 
@@ -34,6 +44,14 @@ namespace ProceduralVegetation {
     }
 
     public class Simulation {
+        private struct SpeciesStats {
+            public int total;
+            public int seed;
+            public int sapling;
+            public int mature;
+            public int dying;
+        }
+
         public struct SimulationPoint {
             public FoliageInstance foliageInstance;
 
@@ -45,7 +63,8 @@ namespace ProceduralVegetation {
                 float age = 0,
                 float stress = 0,
                 float energy = 0,
-                float strength = 0
+                float strength = 0,
+                FoliageInstance.FoliageType type = FoliageInstance.FoliageType.Seed
             ) {
                 this.foliageInstance = new FoliageInstance() {
                     position = position,
@@ -53,7 +72,7 @@ namespace ProceduralVegetation {
                     stress = stress,
                     energy = energy,
                     strength = strength,
-                    type = FoliageInstance.FoliageType.Seed
+                    type = type
                 };
                 this.speciesID = speciesID;
             }
@@ -104,7 +123,16 @@ namespace ProceduralVegetation {
             var speciesID = simulationContext.speciesDescriptors.Count - 1;
 
             for (int i = 0; i < position.Length; i++) {
-                simulationContext.points.Add(new(position[i], speciesID));
+                var seed = descriptor.CreateSeed(position[i]);
+                simulationContext.points.Add(new SimulationPoint(
+                    seed.position,
+                    speciesID,
+                    seed.age,
+                    seed.stress,
+                    seed.energy,
+                    seed.strength,
+                    seed.type
+                ));
             }
 
             return this;
@@ -152,7 +180,6 @@ namespace ProceduralVegetation {
                 var yearStartTime = currentTime + wholeYear;
                 var yearEndTime = Mathf.Min(yearStartTime + 1f, currentTime + simTime);
 
-                Debug.Log($"Simulating year {yearStartTime}: Tree num: {simulationContext.points.Count}");
                 foreach (var generator in eventGenerators) {
                     var newEvents = generator.Generate(yearStartTime);
                     foreach (var e in newEvents) {
@@ -172,6 +199,8 @@ namespace ProceduralVegetation {
                     simEvent.time = scheduledTime;
                     simEvent.Execute(ref simulationContext);
                 }
+
+                LogSpeciesStats(yearStartTime);
             }
 
             currentTime += simTime;
@@ -181,6 +210,46 @@ namespace ProceduralVegetation {
             foreach (var point in simulationContext.points) {
                 yield return new SimulationPointView(point, this);
             }
+        }
+
+        private void LogSpeciesStats(float year) {
+            int speciesCount = simulationContext.speciesDescriptors.Count;
+            var stats = new SpeciesStats[speciesCount];
+
+            for (int i = 0; i < simulationContext.points.Count; i++) {
+                var point = simulationContext.points[i];
+                if (point.speciesID < 0 || point.speciesID >= speciesCount) {
+                    continue;
+                }
+
+                stats[point.speciesID].total++;
+                switch (point.foliageInstance.type) {
+                    case FoliageInstance.FoliageType.Seed:
+                        stats[point.speciesID].seed++;
+                        break;
+                    case FoliageInstance.FoliageType.Sapling:
+                        stats[point.speciesID].sapling++;
+                        break;
+                    case FoliageInstance.FoliageType.Mature:
+                        stats[point.speciesID].mature++;
+                        break;
+                    case FoliageInstance.FoliageType.Dying:
+                        stats[point.speciesID].dying++;
+                        break;
+                }
+            }
+
+            var message = new StringBuilder();
+            message.Append($"Year {year:0}: total={simulationContext.points.Count}");
+
+            for (int i = 0; i < speciesCount; i++) {
+                var descriptor = simulationContext.speciesDescriptors[i];
+                var speciesName = descriptor != null ? descriptor.GetType().Name : "UnknownSpecies";
+                var species = stats[i];
+                message.Append($" | [{i}:{speciesName}] total={species.total}, seed={species.seed}, sapling={species.sapling}, mature={species.mature}, dying={species.dying}");
+            }
+
+            Debug.Log(message.ToString());
         }
 
         // TODO: make it possible to use multiple random generators with different seeds

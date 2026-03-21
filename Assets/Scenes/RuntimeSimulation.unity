@@ -319,6 +319,9 @@ GameObject:
   - component: {fileID: 1776596492}
   - component: {fileID: 1776596491}
   - component: {fileID: 1776596493}
+  - component: {fileID: 1776596495}
+  - component: {fileID: 1776596494}
+  - component: {fileID: 1776596496}
   m_Layer: 0
   m_Name: RuntimeSimulator
   m_TagString: Untagged
@@ -340,6 +343,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speciesContainers:
   - {fileID: 1776596493}
+  - {fileID: 1776596495}
+  - {fileID: 1776596494}
+  tunerHost: 127.0.0.1
+  tunerPort: 5057
+  balancingTrials: 120
+  balancingHorizonYears: 100
+  targetDistribution:
+  - speciesName: SpruceDescriptor
+    targetShare: 0.3
+  - speciesName: BirchDescriptor
+    targetShare: 0.65
+  - speciesName: OakDescriptor
+    targetShare: 0.05
+  autoStartPythonServer: 1
+  pythonExecutable: python
+  pythonScriptRelativePath: tools/species_tuner_server.py
+  pythonServerStartupTimeoutMs: 8000
 --- !u!4 &1776596492
 Transform:
   m_ObjectHideFlags: 0
@@ -364,14 +384,87 @@ MonoBehaviour:
   m_GameObject: {fileID: 1776596490}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c0cc44324f154924999e79fe90fe7474, type: 3}
+  m_Script: {fileID: 11500000, guid: 7b463195a7bd2344bb3213e3ba812252, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  seedOak: []
-  smallOak: []
-  matureOak: []
-  deadOak: []
-  initialPointsCount: 5
+  seed: 
+  initialPopulation: 6
+  seedPrefabs:
+  - {fileID: 193026, guid: fa7e1e6c12d0fdd4a90d481a47800ee1, type: 3}
+  saplingPrefabs:
+  - {fileID: 193026, guid: f882b3b83c1fc204fa5c6467887dbdca, type: 3}
+  - {fileID: 136862, guid: c5e22de043c58b54498cdabd89fccdab, type: 3}
+  maturePrefabs:
+  - {fileID: 136862, guid: 0b1a69c6db6b6bd4480eca262c7eee0a, type: 3}
+  - {fileID: 102284, guid: c06ada7c558de2b4ca6953aa46ca891c, type: 3}
+--- !u!114 &1776596494
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776596490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 930f9d963d6360746a07dd71eb9363af, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  seed: 
+  initialPopulation: 2
+  seedPrefabs:
+  - {fileID: 197626, guid: df5462bd244a1d34aaa4e35a68f6d4be, type: 3}
+  saplingPrefabs:
+  - {fileID: 197626, guid: 26af2272f700bda43bd6443bcf0bf6a3, type: 3}
+  - {fileID: 197626, guid: 8c2ce82804d5f694baebd9c091763c46, type: 3}
+  - {fileID: 197626, guid: b8779b61f3ff1ae4aa81cd2cf7885500, type: 3}
+  maturePrefabs:
+  - {fileID: 126036, guid: 5f7e1d30aeefe034089abd6a02333d30, type: 3}
+  - {fileID: 108110, guid: 068a2ca839242e947aa534be471f47c5, type: 3}
+  - {fileID: 126036, guid: 63ce041b85a463b47a3030430ead0edd, type: 3}
+--- !u!114 &1776596495
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776596490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a146e59519eaaa145a9f6997bf0d28c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  seed: 
+  initialPopulation: 6
+  seedPrefabs:
+  - {fileID: 198692, guid: f7dabf2bd90c7b744b5e0afff4ce12d4, type: 3}
+  - {fileID: 198692, guid: 2f7ba5e0b15273e499a1a201c2833cd4, type: 3}
+  saplingPrefabs:
+  - {fileID: 198692, guid: 65b859adfa6285d44b1373bb58f8f712, type: 3}
+  - {fileID: 198692, guid: 5007d72f38a3bc143ab6fb487790555e, type: 3}
+  maturePrefabs:
+  - {fileID: 198692, guid: f4a216fa3295d69429cbd631b9215447, type: 3}
+  - {fileID: 198692, guid: 121f4b8733ad35948b7f777425cb7660, type: 3}
+--- !u!114 &1776596496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776596490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d24649f7e56c8c45b4f03c7582a059d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  seed: 
+  initialPopulation: 6
+  seedPrefabs: []
+  saplingPrefabs: []
+  maturePrefabs: []
+  seedScaleRange: {x: 0.35, y: 0.55}
+  saplingScaleRange: {x: 0.65, y: 0.95}
+  matureScaleRange: {x: 1.05, y: 1.45}
+  maxTilt: 4
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

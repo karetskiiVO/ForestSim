@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using ProceduralVegetation.Core;
+using ProceduralVegetation.Utilities;
 
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -27,10 +28,25 @@ namespace ProceduralVegetation {
         public override void Execute(ref SimulationContext ctx) {
             var newFoliage = new List<SimulationPoint>();
 
+            for (int i = 0; i < ctx.speciesDescriptors.Count; i++) {
+                ctx.speciesDescriptors[i].ResetPopulationCounters();
+            }
+
+            for (int i = 0; i < ctx.points.Count; i++) {
+                var point = ctx.points[i];
+                if (point.foliageInstance.type == FoliageInstance.FoliageType.Dying) {
+                    continue;
+                }
+
+                var descriptor = ctx.speciesDescriptors[point.speciesID];
+                descriptor.RegisterInstance(in point.foliageInstance);
+            }
+
             for (int i = 0; i < ctx.points.Count; i++) {
                 var point = ctx.points[i];
                 var descriptor = ctx.speciesDescriptors[point.speciesID];
                 var seeds = descriptor.Seed(ref point.foliageInstance);
+                seeds = descriptor.ScaleSeedsByPopulation(seeds, point.foliageInstance);
 
                 newFoliage.AddRange(seeds?.Select(seed => new SimulationPoint(
                     seed.position,
@@ -49,13 +65,38 @@ namespace ProceduralVegetation {
     }
 
     public class DeathEvent : Event {
+        private const int SparseSpeciesThreshold = 2;
+        private const float SparseMatureSurvivalChance = 0.9f;
+
         public override void Execute(ref SimulationContext ctx) {
+            var aliveBySpecies = new Dictionary<int, int>();
+            for (int i = 0; i < ctx.points.Count; i++) {
+                var p = ctx.points[i];
+                if (p.foliageInstance.type == FoliageInstance.FoliageType.Dying) {
+                    continue;
+                }
+
+                if (!aliveBySpecies.ContainsKey(p.speciesID)) {
+                    aliveBySpecies[p.speciesID] = 0;
+                }
+
+                aliveBySpecies[p.speciesID]++;
+            }
+
             // Mark dying first, then remove — avoids index shifting issues.
             for (int i = 0; i < ctx.points.Count; i++) {
                 var point = ctx.points[i];
                 var descriptor = ctx.speciesDescriptors[point.speciesID];
                 if (point.foliageInstance.type != FoliageInstance.FoliageType.Dying &&
                     !descriptor.Alive(in point.foliageInstance)) {
+                    // Protect isolated mature trees on very sparse populations from stochastic wipeout.
+                    if (point.foliageInstance.type == FoliageInstance.FoliageType.Mature &&
+                        aliveBySpecies.TryGetValue(point.speciesID, out int speciesAliveCount) &&
+                        speciesAliveCount <= SparseSpeciesThreshold &&
+                        Simulation.Random.Chance(SparseMatureSurvivalChance)) {
+                        continue;
+                    }
+
                     point.foliageInstance.type = FoliageInstance.FoliageType.Dying;
                     point.foliageInstance.strength = 0f;
                     ctx.points[i] = point;
@@ -315,9 +356,23 @@ namespace ProceduralVegetation {
 
             GL.PopMatrix();
             Graphics.SetRenderTarget(prevRt);
-            UnityEngine.Object.Destroy(mesh);
+            SafeDestroy(mesh);
 
             return indexMap;
+        }
+
+        private static void SafeDestroy(UnityEngine.Object obj) {
+            if (obj == null) {
+                return;
+            }
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying) {
+                UnityEngine.Object.DestroyImmediate(obj);
+                return;
+            }
+#endif
+            UnityEngine.Object.Destroy(obj);
         }
 
         private static Mesh BuildCellIndexMesh(List<Vector2>[] polygons) {

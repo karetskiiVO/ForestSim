@@ -48,8 +48,7 @@ namespace ProceduralVegetation.Editor.Nodes {
 
             var simulation = new Simulation()
                 .SetLandscape(landscape)
-                .AddEventGenerator(new BaseEventGenerator())
-                .AddSpecies(new OakDescriptor(), oakPoints);
+                .AddEventGenerator(new BaseEventGenerator());
 
             simulation.Run(simulationTime);
 
