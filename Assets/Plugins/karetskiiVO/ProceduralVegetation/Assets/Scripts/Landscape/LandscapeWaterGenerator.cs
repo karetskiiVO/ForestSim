@@ -13,14 +13,15 @@ namespace ProceduralVegetation {
         public static Texture2D GenerateWaterMap(
             BakedLandscape baked,
             int iterations = 1000,
-            float dt = 0.001f
+            float dt = 0.001f,
+            float rainRate = 0.002f
         ) {
             if (baked == null || baked.heightmap == null) return null;
             EnsureShadersReady();
 
             var heightmap = baked.heightmap;
             var grads = CalcGrads(heightmap, gradShader);
-            var moisture = CalcMoisture(heightmap, grads, moistureShader, initShader, iterations, dt);
+            var moisture = CalcMoisture(heightmap, grads, moistureShader, initShader, iterations, dt, rainRate);
 
             var waterMap = ReadbackRFloatTexture(moisture);
 
@@ -79,7 +80,8 @@ namespace ProceduralVegetation {
             ComputeShader moistureShader,
             ComputeShader initShader,
             int iterations,
-            float dt
+            float dt,
+            float rainRate
         ) {
             int width = heightmap.width;
             int height = heightmap.height;
@@ -115,6 +117,7 @@ namespace ProceduralVegetation {
                 moistureShader.SetVector("resolution", new Vector2(width, height));
                 moistureShader.SetFloat("dt", dt);
                 moistureShader.SetFloat("flowSpeed", 5.0f);
+                moistureShader.SetFloat("rainRate", rainRate);
                 moistureShader.SetInt("iteration", 0);
                 moistureShader.SetFloat("maxMoisture", 1.0f);
                 moistureShader.SetBool("copyMode", false);
@@ -124,6 +127,7 @@ namespace ProceduralVegetation {
                 moistureShader.SetVector("resolution", new Vector2(width, height));
                 moistureShader.SetFloat("dt", dt);
                 moistureShader.SetFloat("flowSpeed", 5.0f);
+                moistureShader.SetFloat("rainRate", rainRate);
                 moistureShader.SetInt("iteration", 0);
                 moistureShader.SetFloat("maxMoisture", 1.0f);
                 moistureShader.SetBool("copyMode", true);

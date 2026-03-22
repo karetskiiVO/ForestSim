@@ -7,6 +7,7 @@ RWTexture2D<float> MoistureBuf : register(u1);
 
 float dt;           // шаг времени (0.01-0.1)
 float flowSpeed;    // скорость потока (1.0-10.0)
+float rainRate;     // постоянная подпитка влагой за шаг
 uint iteration;     // номер итерации
 float maxMoisture;  // максимальная ёмкость (1.0)
 bool copyMode;
@@ -63,7 +64,7 @@ void simulate(int2 uv) {
     }
 
     // Обновление с ограничением ёмкости
-    float newMoisture = saturate(currentMoisture + inflow - outflow);
+    float newMoisture = saturate(currentMoisture + inflow - outflow + rainRate * dt);
     MoistureBuf[pos] = newMoisture;
 }
 

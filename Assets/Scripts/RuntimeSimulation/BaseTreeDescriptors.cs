@@ -11,12 +11,11 @@ namespace ProceduralVegetation {
         private const float SeedStartStrength = 0.2f;
         private const float MaxStrength = 3f;
 
-        private const float BaseEnergyGainFactor = 0.55f;
+        private const float BaseEnergyGainFactor = 0.62f;
         private const float GrowthEnergyGainScale = 0.35f;
-        private const float BaseLightGainFactor = 0.1f;
+        private const float BaseLightGainFactor = 0.14f;
         private const float GrowthLightGainScale = 0.2f;
 
-        private const float IdealWater = 0.4f;
         private const float IdealLight = 0.3f;
 
         private const float MinEnergyToSeed = 0.35f;
@@ -50,12 +49,20 @@ namespace ProceduralVegetation {
         protected virtual float MatureGrowthScale => 0.018f;
         protected virtual float MatureEnergyLoss => 0.08f;
 
-        protected virtual float WaterStressSensitivity => 0.25f;
+        protected virtual float WaterStressSensitivity => 0.28f;
+        protected virtual float ExcessWaterStressSensitivity => 0.22f;
         protected virtual float LightStressSensitivity => 0.15f;
-        protected virtual float StressAccumulationScale => 0.125f;
+        protected virtual float StressAccumulationScale => 0.07f;
+        protected virtual float WaterComfortBand => 0.2f;
+        protected virtual float MaxWaterStressPerTick => 0.012f;
 
-        protected virtual float RecoveryBase => 0.04f;
-        protected virtual float RecoveryScale => 0.03f;
+        protected virtual float IdealWater => 0.4f;
+
+        protected virtual float RecoveryBase => 0.06f;
+        protected virtual float RecoveryScale => 0.04f;
+
+        protected virtual float UpkeepScale => 0.82f;
+        protected virtual float EnergyLossScale => 0.85f;
 
         // Age-related death rates
         protected virtual float AgeDeathEnergyRate => 0.0f;    // No hard energy threshold decay (only probabilistic)
@@ -85,8 +92,13 @@ namespace ProceduralVegetation {
             float lightGain = BaseLightGainFactor + growthFactor * GrowthLightGainScale;
             instance.energy += energy * energyGain + light * lightGain;
 
-            if (water < IdealWater) {
-                instance.stress += (IdealWater - water) * WaterStressSensitivity * StressAccumulationScale;
+            float waterDelta = water - IdealWater;
+            float waterDeviation = Mathf.Abs(waterDelta);
+            if (waterDeviation > WaterComfortBand) {
+                float effectiveDeviation = waterDeviation - WaterComfortBand;
+                float sensitivity = waterDelta < 0f ? WaterStressSensitivity : ExcessWaterStressSensitivity;
+                float waterStress = effectiveDeviation * sensitivity * StressAccumulationScale;
+                instance.stress += Mathf.Min(MaxWaterStressPerTick, waterStress);
             }
 
             if (light < IdealLight) {
@@ -99,19 +111,19 @@ namespace ProceduralVegetation {
                 case FoliageInstance.FoliageType.Seed:
                     return instance.energy > 0f;
                 case FoliageInstance.FoliageType.Sapling:
-                    float saplingEnergyThreshold = -0.15f;
-                    float saplingStressThreshold = stressTolerance * 1.65f;
+                    float saplingEnergyThreshold = -0.2f;
+                    float saplingStressThreshold = stressTolerance * 2.2f;
                     return instance.energy > saplingEnergyThreshold && instance.stress < saplingStressThreshold;
                 case FoliageInstance.FoliageType.Mature:
                     // Hard limits independent of age - only basic survival thresholds
-                    if (instance.energy <= -0.08f || instance.stress >= stressTolerance * 1.25f) {
+                    if (instance.energy <= -0.2f || instance.stress >= stressTolerance * 1.7f) {
                         return false;
                     }
 
                     // Probabilistic death from old age
-                    // Gradual increase: ~0.15% at 100 years, ~1.5% at 300 years, ~3% at 600+ years
+                    // Gradual increase: ~0.04% at 100 years, ~0.38% at 300 years, ~0.75% at 600+ years
                     float ageDeathChance = Mathf.Clamp01(
-                        Mathf.Pow(instance.age / 600f, 3f) * 0.03f
+                        Mathf.Pow(instance.age / 600f, 3f) * 0.0075f
                     );
                     return !Simulation.Random.Chance(ageDeathChance);
                 default:
@@ -142,11 +154,11 @@ namespace ProceduralVegetation {
                     break;
                 case FoliageInstance.FoliageType.Sapling:
                     instance.age += 1f;
-                    instance.energy = Mathf.Max(-0.1f, instance.energy - SaplingBaseUpkeep - instance.strength * SaplingStrengthUpkeep);
+                    instance.energy = Mathf.Max(-0.15f, instance.energy - (SaplingBaseUpkeep + instance.strength * SaplingStrengthUpkeep) * UpkeepScale);
                     float saplingPositiveEnergy = Mathf.Max(0f, instance.energy);
                     float saplingGrowth = SaplingBaseGrowth + growthFactor * SaplingGrowthScale;
                     instance.strength = Mathf.Min(MaxStrength, instance.strength + saplingPositiveEnergy * saplingGrowth);
-                    instance.energy -= instance.energy * SaplingEnergyLoss;
+                    instance.energy -= instance.energy * (SaplingEnergyLoss * EnergyLossScale);
                     instance.stress = Mathf.Max(0f, instance.stress - (RecoveryBase + growthFactor * RecoveryScale));
 
                     if (instance.age >= matureAge) {
@@ -156,10 +168,10 @@ namespace ProceduralVegetation {
                     break;
                 case FoliageInstance.FoliageType.Mature:
                     instance.age += 1f;
-                    instance.energy = Mathf.Max(-0.05f, instance.energy - MatureBaseUpkeep - instance.strength * MatureStrengthUpkeep);
+                    instance.energy = Mathf.Max(-0.1f, instance.energy - (MatureBaseUpkeep + instance.strength * MatureStrengthUpkeep) * UpkeepScale);
                     float matureGrowth = MatureBaseGrowth + growthFactor * MatureGrowthScale;
                     instance.strength = Mathf.Min(MaxStrength, instance.strength + instance.energy * matureGrowth);
-                    instance.energy -= instance.energy * MatureEnergyLoss;
+                    instance.energy -= instance.energy * (MatureEnergyLoss * EnergyLossScale);
                     instance.stress = Mathf.Max(0f, instance.stress - (RecoveryBase + growthFactor * RecoveryScale));
                     break;
                 case FoliageInstance.FoliageType.Dying:
@@ -276,7 +288,9 @@ namespace ProceduralVegetation {
         protected override float MatureBaseUpkeep => 0.010f;
         protected override float MatureStrengthUpkeep => 0.009f;
         protected override float MatureEnergyLoss => 0.08f;
-        protected override float WaterStressSensitivity => 0.23f;
+        protected override float IdealWater => 0.56f;
+        protected override float WaterStressSensitivity => 0.29f;
+        protected override float ExcessWaterStressSensitivity => 0.16f;
         protected override float LightStressSensitivity => 0.15f;
         protected override float AgeDeathEnergyRate => 0.00001f;  // ~unlimited lifespan
         protected override float AgeDeathStressRate => 0.00001f;
@@ -292,7 +306,9 @@ namespace ProceduralVegetation {
         protected override float MatureBaseUpkeep => 0.010f;
         protected override float MatureStrengthUpkeep => 0.009f;
         protected override float MatureEnergyLoss => 0.08f;
-        protected override float WaterStressSensitivity => 0.25f;
+        protected override float IdealWater => 0.24f;
+        protected override float WaterStressSensitivity => 0.24f;
+        protected override float ExcessWaterStressSensitivity => 0.32f;
         protected override float LightStressSensitivity => 0.17f;
         protected override float AgeDeathEnergyRate => 0.008f;   // Dies around 250 years
         protected override float AgeDeathStressRate => 0.005f;
@@ -308,7 +324,9 @@ namespace ProceduralVegetation {
         protected override float MatureBaseUpkeep => 0.010f;
         protected override float MatureStrengthUpkeep => 0.009f;
         protected override float MatureEnergyLoss => 0.08f;
+        protected override float IdealWater => 0.20f;
         protected override float WaterStressSensitivity => 0.24f;
+        protected override float ExcessWaterStressSensitivity => 0.36f;
         protected override float LightStressSensitivity => 0.16f;
     }
 
@@ -322,7 +340,9 @@ namespace ProceduralVegetation {
         protected override float MatureBaseUpkeep => 0.010f;
         protected override float MatureStrengthUpkeep => 0.009f;
         protected override float MatureEnergyLoss => 0.08f;
-        protected override float WaterStressSensitivity => 0.26f;
+        protected override float IdealWater => 0.60f;
+        protected override float WaterStressSensitivity => 0.30f;
+        protected override float ExcessWaterStressSensitivity => 0.18f;
         protected override float LightStressSensitivity => 0.18f;
     }
 
@@ -336,7 +356,9 @@ namespace ProceduralVegetation {
         protected override float MatureBaseUpkeep => 0.011f;
         protected override float MatureStrengthUpkeep => 0.010f;
         protected override float MatureEnergyLoss => 0.09f;
-        protected override float WaterStressSensitivity => 0.27f;
+        protected override float IdealWater => 0.56f;
+        protected override float WaterStressSensitivity => 0.31f;
+        protected override float ExcessWaterStressSensitivity => 0.19f;
         protected override float LightStressSensitivity => 0.19f;
         protected override float AgeDeathEnergyRate => 0.016f;   // Dies around 125 years
         protected override float AgeDeathStressRate => 0.01f;
@@ -352,7 +374,9 @@ namespace ProceduralVegetation {
         protected override float MatureBaseUpkeep => 0.011f;
         protected override float MatureStrengthUpkeep => 0.010f;
         protected override float MatureEnergyLoss => 0.09f;
-        protected override float WaterStressSensitivity => 0.29f;
+        protected override float IdealWater => 0.34f;
+        protected override float WaterStressSensitivity => 0.33f;
+        protected override float ExcessWaterStressSensitivity => 0.24f;
         protected override float LightStressSensitivity => 0.19f;
     }
 }

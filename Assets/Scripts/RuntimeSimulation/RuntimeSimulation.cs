@@ -55,7 +55,7 @@ class RuntimeSimulation : MonoBehaviour {
 
         simulation = new Simulation()
             .SetLandscape(bakedLandscape)
-            .GenerateWaterAuto(1000, 0.1f, 1f);
+            .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f);
 
         LogWaterMinMax();
 

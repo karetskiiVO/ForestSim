@@ -143,12 +143,13 @@ namespace ProceduralVegetation {
             return this;
         }
 
-        public Simulation GenerateWaterAuto(int iterations = 100, float dt = 0.1f, float waterScale = 1f) {
+        public Simulation GenerateWaterAuto(int iterations = 100, float dt = 0.1f, float waterScale = 1f, float rainRate = 0.002f) {
             simulationContext.water = new() {
                 waterMap = LandscapeWaterGenerator.GenerateWaterMap(
                     simulationContext.landscape,
                     iterations,
-                    dt
+                    dt,
+                    rainRate
                 ),
                 waterScale = waterScale,
             };
