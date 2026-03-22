@@ -53,8 +53,9 @@ namespace ProceduralVegetation {
         protected virtual float ExcessWaterStressSensitivity => 0.22f;
         protected virtual float LightStressSensitivity => 0.15f;
         protected virtual float StressAccumulationScale => 0.07f;
-        protected virtual float WaterComfortBand => 0.2f;
-        protected virtual float MaxWaterStressPerTick => 0.012f;
+        protected virtual float WaterStressScaleMultiplier => 1.75f;
+        protected virtual float WaterComfortBand => 0.12f;
+        protected virtual float MaxWaterStressPerTick => 0.022f;
 
         protected virtual float IdealWater => 0.4f;
 
@@ -97,7 +98,7 @@ namespace ProceduralVegetation {
             if (waterDeviation > WaterComfortBand) {
                 float effectiveDeviation = waterDeviation - WaterComfortBand;
                 float sensitivity = waterDelta < 0f ? WaterStressSensitivity : ExcessWaterStressSensitivity;
-                float waterStress = effectiveDeviation * sensitivity * StressAccumulationScale;
+                float waterStress = effectiveDeviation * sensitivity * StressAccumulationScale * WaterStressScaleMultiplier;
                 instance.stress += Mathf.Min(MaxWaterStressPerTick, waterStress);
             }
 
@@ -279,9 +280,9 @@ namespace ProceduralVegetation {
     }
 
     public class OakDescriptor : CompetitiveTreeDescriptor {
-        public OakDescriptor() : base(growthFactor: 0.55f, seedFactor: 0.58f, spreadSigma: 7f, stressTolerance: 2.2f, matureAge: 6f, softPopulationCap: 220f) { }
-
         // Oak: hardwood, stress-resistant, nearly unlimited lifespan
+        // Adjusted to be thinned: slower proliferation, lower density ceiling.
+        public OakDescriptor() : base(growthFactor: 0.48f, seedFactor: 0.40f, spreadSigma: 7f, stressTolerance: 2.2f, matureAge: 6f, softPopulationCap: 120f) { }
         protected override float SaplingBaseUpkeep => 0.009f;
         protected override float SaplingStrengthUpkeep => 0.008f;
         protected override float SaplingEnergyLoss => 0.11f;
@@ -289,15 +290,15 @@ namespace ProceduralVegetation {
         protected override float MatureStrengthUpkeep => 0.009f;
         protected override float MatureEnergyLoss => 0.08f;
         protected override float IdealWater => 0.56f;
-        protected override float WaterStressSensitivity => 0.29f;
-        protected override float ExcessWaterStressSensitivity => 0.16f;
+        protected override float WaterStressSensitivity => 0.33f;
+        protected override float ExcessWaterStressSensitivity => 0.2f;
         protected override float LightStressSensitivity => 0.15f;
         protected override float AgeDeathEnergyRate => 0.00001f;  // ~unlimited lifespan
         protected override float AgeDeathStressRate => 0.00001f;
     }
 
     public class SpruceDescriptor : CompetitiveTreeDescriptor {
-        public SpruceDescriptor() : base(growthFactor: 0.52f, seedFactor: 0.62f, spreadSigma: 8f, stressTolerance: 2.3f, matureAge: 7f, softPopulationCap: 240f) { }
+        public SpruceDescriptor() : base(growthFactor: 0.54f, seedFactor: 0.67f, spreadSigma: 8f, stressTolerance: 2.5f, matureAge: 6f, softPopulationCap: 250f) { }
 
         // Spruce: conifer, moderate upkeep, ~250 year lifespan
         protected override float SaplingBaseUpkeep => 0.009f;
@@ -306,10 +307,10 @@ namespace ProceduralVegetation {
         protected override float MatureBaseUpkeep => 0.010f;
         protected override float MatureStrengthUpkeep => 0.009f;
         protected override float MatureEnergyLoss => 0.08f;
-        protected override float IdealWater => 0.24f;
+        protected override float IdealWater => 0.2f;
         protected override float WaterStressSensitivity => 0.24f;
-        protected override float ExcessWaterStressSensitivity => 0.32f;
-        protected override float LightStressSensitivity => 0.17f;
+        protected override float ExcessWaterStressSensitivity => 0.55f;
+        protected override float LightStressSensitivity => 0.16f;
         protected override float AgeDeathEnergyRate => 0.008f;   // Dies around 250 years
         protected override float AgeDeathStressRate => 0.005f;
     }
@@ -325,8 +326,8 @@ namespace ProceduralVegetation {
         protected override float MatureStrengthUpkeep => 0.009f;
         protected override float MatureEnergyLoss => 0.08f;
         protected override float IdealWater => 0.20f;
-        protected override float WaterStressSensitivity => 0.24f;
-        protected override float ExcessWaterStressSensitivity => 0.36f;
+        protected override float WaterStressSensitivity => 0.28f;
+        protected override float ExcessWaterStressSensitivity => 0.46f;
         protected override float LightStressSensitivity => 0.16f;
     }
 
@@ -341,13 +342,13 @@ namespace ProceduralVegetation {
         protected override float MatureStrengthUpkeep => 0.009f;
         protected override float MatureEnergyLoss => 0.08f;
         protected override float IdealWater => 0.60f;
-        protected override float WaterStressSensitivity => 0.30f;
-        protected override float ExcessWaterStressSensitivity => 0.18f;
+        protected override float WaterStressSensitivity => 0.34f;
+        protected override float ExcessWaterStressSensitivity => 0.22f;
         protected override float LightStressSensitivity => 0.18f;
     }
 
     public class BirchDescriptor : CompetitiveTreeDescriptor {
-        public BirchDescriptor() : base(growthFactor: 0.56f, seedFactor: 0.64f, spreadSigma: 8f, stressTolerance: 2.0f, matureAge: 5f, softPopulationCap: 225f) { }
+        public BirchDescriptor() : base(growthFactor: 0.55f, seedFactor: 0.62f, spreadSigma: 8f, stressTolerance: 1.9f, matureAge: 6f, softPopulationCap: 225f) { }
 
         // Birch: pioneer, higher upkeep but resilient, ~125 year lifespan
         protected override float SaplingBaseUpkeep => 0.010f;
@@ -356,10 +357,10 @@ namespace ProceduralVegetation {
         protected override float MatureBaseUpkeep => 0.011f;
         protected override float MatureStrengthUpkeep => 0.010f;
         protected override float MatureEnergyLoss => 0.09f;
-        protected override float IdealWater => 0.56f;
-        protected override float WaterStressSensitivity => 0.31f;
-        protected override float ExcessWaterStressSensitivity => 0.19f;
-        protected override float LightStressSensitivity => 0.19f;
+        protected override float IdealWater => 0.62f;
+        protected override float WaterStressSensitivity => 0.46f;
+        protected override float ExcessWaterStressSensitivity => 0.17f;
+        protected override float LightStressSensitivity => 0.18f;
         protected override float AgeDeathEnergyRate => 0.016f;   // Dies around 125 years
         protected override float AgeDeathStressRate => 0.01f;
     }
@@ -375,8 +376,8 @@ namespace ProceduralVegetation {
         protected override float MatureStrengthUpkeep => 0.010f;
         protected override float MatureEnergyLoss => 0.09f;
         protected override float IdealWater => 0.34f;
-        protected override float WaterStressSensitivity => 0.33f;
-        protected override float ExcessWaterStressSensitivity => 0.24f;
+        protected override float WaterStressSensitivity => 0.37f;
+        protected override float ExcessWaterStressSensitivity => 0.3f;
         protected override float LightStressSensitivity => 0.19f;
     }
 }

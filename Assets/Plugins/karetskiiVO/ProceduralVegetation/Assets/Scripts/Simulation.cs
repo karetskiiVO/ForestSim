@@ -100,6 +100,8 @@ namespace ProceduralVegetation {
         public struct SimulationContext {
             public List<TreeSpeciesDescriptor> speciesDescriptors;
             public List<SimulationPoint> points;
+            public Queue<SimulationPoint> deadPoints;
+            public int deadPointsMaxSize;
 
             public BakedLandscape landscape;
             public LanscapeFruitfillness fruitfulness;
@@ -177,6 +179,15 @@ namespace ProceduralVegetation {
             return this;
         }
 
+        public Simulation SetDeadPointsBufferCapacity(int maxSize) {
+            if (maxSize <= 0) {
+                throw new ArgumentOutOfRangeException(nameof(maxSize), "Dead points buffer capacity should be positive.");
+            }
+
+            simulationContext.deadPointsMaxSize = maxSize;
+            return this;
+        }
+
         public void Run(float simTime) {
             if (simulationContext.fruitfulness == null) {
                 simulationContext.fruitfulness = new LanscapeFruitfillness() {
@@ -222,6 +233,12 @@ namespace ProceduralVegetation {
 
         public IEnumerable<SimulationPointView> GetPointsView() {
             foreach (var point in simulationContext.points) {
+                yield return new SimulationPointView(point, this);
+            }
+        }
+
+        public IEnumerable<SimulationPointView> GetDeadPointsView() {
+            foreach (var point in simulationContext.deadPoints) {
                 yield return new SimulationPointView(point, this);
             }
         }
@@ -277,6 +294,8 @@ namespace ProceduralVegetation {
         public SimulationContext simulationContext = new() {
             speciesDescriptors = new(),
             points = new(),
+            deadPoints = new Queue<SimulationPoint>(),
+            deadPointsMaxSize = 4096,
         };
     }
 }

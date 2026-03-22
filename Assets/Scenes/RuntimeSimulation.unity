@@ -322,6 +322,7 @@ GameObject:
   - component: {fileID: 1776596495}
   - component: {fileID: 1776596494}
   - component: {fileID: 1776596496}
+  - component: {fileID: 1776596497}
   m_Layer: 0
   m_Name: RuntimeSimulator
   m_TagString: Untagged
@@ -345,6 +346,12 @@ MonoBehaviour:
   - {fileID: 1776596493}
   - {fileID: 1776596495}
   - {fileID: 1776596494}
+  - {fileID: 1776596497}
+  drawMoistureOverlay: 1
+  normalizeMoistureOverlay: 1
+  moistureOverlayContrast: 1.1
+  applyMapGeneratorOrientation: 0
+  logMoistureOverlayStats: 1
 --- !u!4 &1776596492
 Transform:
   m_ObjectHideFlags: 0
@@ -372,7 +379,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b463195a7bd2344bb3213e3ba812252, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  initialPopulation: 6
+  initialPopulation: 24
   seedPrefabs:
   - {fileID: 193026, guid: fa7e1e6c12d0fdd4a90d481a47800ee1, type: 3}
   saplingPrefabs:
@@ -397,7 +404,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 930f9d963d6360746a07dd71eb9363af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  initialPopulation: 2
+  initialPopulation: 5
   seedPrefabs:
   - {fileID: 197626, guid: df5462bd244a1d34aaa4e35a68f6d4be, type: 3}
   saplingPrefabs:
@@ -424,7 +431,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a146e59519eaaa145a9f6997bf0d28c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  initialPopulation: 6
+  initialPopulation: 24
   seedPrefabs:
   - {fileID: 198692, guid: f7dabf2bd90c7b744b5e0afff4ce12d4, type: 3}
   - {fileID: 198692, guid: 2f7ba5e0b15273e499a1a201c2833cd4, type: 3}
@@ -450,18 +457,49 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d24649f7e56c8c45b4f03c7582a059d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  initialPopulation: 6
-  seedPrefabs: []
-  saplingPrefabs: []
-  maturePrefabs: []
+  initialPopulation: 24
+  seedPrefabs:
+  - {fileID: 168064, guid: 90cb5eca8b13c3e4eb450a8933f1511f, type: 3}
+  - {fileID: 168064, guid: 5612bbcda5103254294acd07b51d6517, type: 3}
+  - {fileID: 168064, guid: 9605270a68f5b3b4fbff3d3cbada971f, type: 3}
+  saplingPrefabs:
+  - {fileID: 168064, guid: 90cb5eca8b13c3e4eb450a8933f1511f, type: 3}
+  - {fileID: 168064, guid: 5612bbcda5103254294acd07b51d6517, type: 3}
+  - {fileID: 168064, guid: 9605270a68f5b3b4fbff3d3cbada971f, type: 3}
+  maturePrefabs:
+  - {fileID: 168064, guid: 90cb5eca8b13c3e4eb450a8933f1511f, type: 3}
+  - {fileID: 168064, guid: 5612bbcda5103254294acd07b51d6517, type: 3}
+  - {fileID: 168064, guid: 9605270a68f5b3b4fbff3d3cbada971f, type: 3}
   seedScaleRange: {x: 0.35, y: 0.55}
   saplingScaleRange: {x: 0.65, y: 0.95}
   matureScaleRange: {x: 1.05, y: 1.45}
   maxRandomYaw: 8
-  seedScaleRange: {x: 0.35, y: 0.55}
-  saplingScaleRange: {x: 0.65, y: 0.95}
-  matureScaleRange: {x: 1.05, y: 1.45}
-  maxTilt: 4
+  bushSeedScaleRange: {x: 0.35, y: 0.55}
+  bushSaplingScaleRange: {x: 0.65, y: 0.95}
+  bushMatureScaleRange: {x: 1.05, y: 1.45}
+--- !u!114 &1776596497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776596490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36c99ea0b1498ca47af655e75d1f8eed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  initialPopulation: 24
+  seedPrefabs:
+  - {fileID: 156486, guid: 5313c886ee557b54aaccecac736a44e0, type: 3}
+  saplingPrefabs:
+  - {fileID: 156486, guid: 836f3a89344350b459e78b8f335e8932, type: 3}
+  maturePrefabs:
+  - {fileID: 156486, guid: fd2a4ec6366b3a44d83bfe5d9c423c35, type: 3}
+  seedScaleRange: {x: 0.25, y: 0.45}
+  saplingScaleRange: {x: 0.55, y: 0.9}
+  matureScaleRange: {x: 0.95, y: 1.35}
+  maxRandomYaw: 8
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

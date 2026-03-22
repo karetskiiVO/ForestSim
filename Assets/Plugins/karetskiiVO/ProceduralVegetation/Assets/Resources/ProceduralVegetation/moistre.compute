@@ -63,8 +63,14 @@ void simulate(int2 uv) {
             inflow += (nPotential - potential) * flowSpeed * dt;
     }
 
+    // На пологих участках влага от дождя задерживается лучше, чем на крутых склонах.
+    float slope = length(grad);
+    float flatness = saturate(1.0 - slope * 2.2);
+    float rainRetention = lerp(0, 1.0, flatness * flatness);
+    float rainInput = rainRate * dt * rainRetention;
+
     // Обновление с ограничением ёмкости
-    float newMoisture = saturate(currentMoisture + inflow - outflow + rainRate * dt);
+    float newMoisture = saturate(currentMoisture + inflow - outflow + rainInput);
     MoistureBuf[pos] = newMoisture;
 }
 

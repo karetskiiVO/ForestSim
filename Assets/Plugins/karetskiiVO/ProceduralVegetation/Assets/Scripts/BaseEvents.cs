@@ -102,6 +102,15 @@ namespace ProceduralVegetation {
                     ctx.points[i] = point;
                 }
             }
+
+            // Collect dying/dead trees in a separate queue before cleanup.
+            foreach (var deadTree in ctx.points.Where(p => p.foliageInstance.type == FoliageInstance.FoliageType.Dying)) {
+                ctx.deadPoints.Enqueue(deadTree);
+                while (ctx.deadPoints.Count > ctx.deadPointsMaxSize) {
+                    ctx.deadPoints.Dequeue();
+                }
+            }
+
             ctx.points.RemoveAll(p => p.foliageInstance.type == FoliageInstance.FoliageType.Dying);
         }
     }
