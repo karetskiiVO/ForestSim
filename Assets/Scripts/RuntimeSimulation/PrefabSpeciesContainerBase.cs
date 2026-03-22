@@ -139,17 +139,30 @@ public abstract class PrefabSpeciesContainerBase : RuntimeSpeciesContainer {
         float strengthT = Mathf.Clamp01(point.strength / 3f);
         float ageT = Mathf.Clamp01(point.age / 12f);
 
-        // For seeds use age, for saplings use blend, for mature use strength
+        // For seeds use age, for saplings use blend, for mature use max scale (constant)
         float t = point.type switch {
             FoliageInstance.FoliageType.Seed => ageT,
             FoliageInstance.FoliageType.Sapling => Mathf.Clamp01(strengthT * 0.5f + ageT * 0.5f),
-            FoliageInstance.FoliageType.Mature => strengthT,
-            _ => strengthT,
+            FoliageInstance.FoliageType.Mature => 1f,  // Mature trees always use maximum scale
+            _ => 1f,
         };
 
         float baseScale = Mathf.Lerp(range.x, range.y, t);
         float jitter = Mathf.Lerp(0.92f, 1.08f, GetHash01(point.position, 0x7F4A9D));
         float finalScale = Mathf.Max(0.01f, baseScale * jitter);
+
+        // Add gradual fading effect as tree ages (visual aging)
+        var color = instanceTransform.GetComponent<Renderer>()?.material.color ?? Color.white;
+        if (point.type == FoliageInstance.FoliageType.Mature) {
+            // Fade out gradually based on age to show aging before death
+            float maxAge = 400f;  // Reference max age for fading
+            float ageFade = Mathf.Clamp01(point.age / maxAge);
+            // Between 0.8 and 1.0 alpha for smooth aging
+            color.a = Mathf.Lerp(1f, 0.8f, ageFade);
+            if (instanceTransform.TryGetComponent<Renderer>(out var renderer)) {
+                renderer.material.color = color;
+            }
+        }
 
         instanceTransform.localScale = Vector3.one * finalScale;
     }

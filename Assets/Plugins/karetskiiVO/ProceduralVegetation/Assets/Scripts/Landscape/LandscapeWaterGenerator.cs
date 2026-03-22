@@ -12,8 +12,8 @@ namespace ProceduralVegetation {
 
         public static Texture2D GenerateWaterMap(
             BakedLandscape baked,
-            int iterations = 10,
-            float dt = 1f
+            int iterations = 1000,
+            float dt = 0.001f
         ) {
             if (baked == null || baked.heightmap == null) return null;
             EnsureShadersReady();
@@ -45,7 +45,7 @@ namespace ProceduralVegetation {
             LoadShader(ref gradShader, GradShaderResourcePath);
             LoadShader(ref moistureShader, MoistureShaderResourcePath);
             LoadShader(ref initShader, InitShaderResourcePath);
-}
+        }
 
         private static RenderTexture CalcGrads(Texture heightmap, ComputeShader gradShader) {
             int width = heightmap.width;

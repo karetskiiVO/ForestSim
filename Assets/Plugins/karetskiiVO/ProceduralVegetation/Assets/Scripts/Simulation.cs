@@ -143,6 +143,19 @@ namespace ProceduralVegetation {
             return this;
         }
 
+        public Simulation GenerateWaterAuto(int iterations = 100, float dt = 0.1f, float waterScale = 1f) {
+            simulationContext.water = new() {
+                waterMap = LandscapeWaterGenerator.GenerateWaterMap(
+                    simulationContext.landscape,
+                    iterations,
+                    dt
+                ),
+                waterScale = waterScale,
+            };
+
+            return this;
+        }
+
         public Simulation SetLandscape(BakedLandscape landscape) {
             simulationContext.landscape = landscape;
             return this;
@@ -259,7 +272,8 @@ namespace ProceduralVegetation {
 
         private PriorityQueue<Event, float> events = new();
         private List<EventGenerator> eventGenerators = new();
-        private SimulationContext simulationContext = new() {
+        // TODO: make private after debugging
+        public SimulationContext simulationContext = new() {
             speciesDescriptors = new(),
             points = new(),
         };

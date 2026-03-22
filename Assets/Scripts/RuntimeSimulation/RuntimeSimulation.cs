@@ -14,6 +14,22 @@ class RuntimeSimulation : MonoBehaviour {
     [SerializeField]
     RuntimeSpeciesContainer[] speciesContainers;
 
+    [SerializeField]
+    bool drawMoistureOverlay = true;
+
+    [SerializeField]
+    bool normalizeMoistureOverlay = true;
+
+    [SerializeField]
+    [Range(0.1f, 4f)]
+    float moistureOverlayContrast = 1.1f;
+
+    [SerializeField]
+    bool applyMapGeneratorOrientation = false;
+
+    [SerializeField]
+    bool logMoistureOverlayStats = true;
+
     private bool simulationInitialized;
 
     private void Start() {
@@ -32,25 +48,22 @@ class RuntimeSimulation : MonoBehaviour {
             return;
         }
 
-        var landscape = new RidgedNoiseLandscapeDescriptor() {
+        var landscape = new AdvancedMountainLandscapeDescriptor() {
             bbox = new Bounds(new Vector3(0, 0, 0), new Vector3(1000, 21, 1000)),
-            offset = new Vector2(0, 0),
-            octaves = 4,
-            lacunarity = 2f,
-            persistence = 0.74f,
-            sharpness = 0.5f
         };
         bakedLandscape = landscape.Bake(new() { resolution = new(512, 512) });
-        DrawLandscape();
 
         simulation = new Simulation()
-            .SetLandscape(bakedLandscape);
+            .SetLandscape(bakedLandscape)
+            .GenerateWaterAuto(1000, 0.1f, 1f);
+
+        LogWaterMinMax();
+
+        DrawLandscape();
 
         if (speciesContainers != null) {
             foreach (var speciesContainer in speciesContainers) {
-                if (speciesContainer == null) {
-                    continue;
-                }
+                if (speciesContainer == null) continue;
 
                 var descriptor = speciesContainer.GetDescriptor();
                 var initialPoints = speciesContainer.GetInitialPoints(bakedLandscape.bbox);
@@ -120,7 +133,7 @@ class RuntimeSimulation : MonoBehaviour {
     private void DrawLandscape() {
         GameObject parent = null;
 
-        var heightmap = bakedLandscape.heightmap;
+        var heightmap = simulation.simulationContext.landscape.heightmap;
         int texW = heightmap.width;
         int texH = heightmap.height;
         var rawData = heightmap.GetRawTextureData<float>();
@@ -134,6 +147,20 @@ class RuntimeSimulation : MonoBehaviour {
         int tilesZ = Mathf.CeilToInt((float)texH / stride);
 
         int tileRes = NextValidTerrainResolution(MAX_TILE_RES);
+
+        Texture2D moistureDebugTexture = null;
+        Color[] moistureDebugPixels = null;
+        int moistureDebugWidth = 0;
+        int moistureDebugHeight = 0;
+
+        if (drawMoistureOverlay) {
+            moistureDebugTexture = BuildMoistureDebugTexture();
+            if (moistureDebugTexture != null) {
+                moistureDebugPixels = moistureDebugTexture.GetPixels();
+                moistureDebugWidth = moistureDebugTexture.width;
+                moistureDebugHeight = moistureDebugTexture.height;
+            }
+        }
 
         GameObject terrainParent;
         if (parent != null) {
@@ -194,6 +221,19 @@ class RuntimeSimulation : MonoBehaviour {
                 };
                 terrainData.SetHeights(0, 0, heights);
 
+                if (moistureDebugPixels != null) {
+                    ApplyMoistureDebugOverlay(
+                        terrainData,
+                        pixX0,
+                        pixZ0,
+                        tilePixW,
+                        tilePixH,
+                        moistureDebugPixels,
+                        moistureDebugWidth,
+                        moistureDebugHeight
+                    );
+                }
+
                 var go = Terrain.CreateTerrainGameObject(terrainData);
                 go.name = $"TerrainTile_{tx}_{tz}";
                 go.transform.SetParent(terrainParent.transform);
@@ -203,6 +243,174 @@ class RuntimeSimulation : MonoBehaviour {
                 go.transform.position = new Vector3(originX, bakedLandscape.minHeight, originZ);
             }
         }
+
+        if (moistureDebugTexture != null) {
+            Destroy(moistureDebugTexture);
+        }
+    }
+
+    private Texture2D BuildMoistureDebugTexture() {
+        var waterMap = simulation?.simulationContext.water?.waterMap;
+        if (waterMap == null) {
+            return null;
+        }
+
+        var sourceData = waterMap.GetPixelData<float>(0);
+        if (sourceData.Length == 0) {
+            return null;
+        }
+
+        float minValue = float.PositiveInfinity;
+        float maxValue = float.NegativeInfinity;
+        int nanCount = 0;
+        for (int i = 0; i < sourceData.Length; i++) {
+            float value = sourceData[i];
+            if (float.IsNaN(value)) {
+                nanCount++;
+                continue;
+            }
+
+            if (value < minValue) minValue = value;
+            if (value > maxValue) maxValue = value;
+        }
+
+        if (float.IsInfinity(minValue) || float.IsInfinity(maxValue)) {
+            return null;
+        }
+
+        if (logMoistureOverlayStats) {
+            Debug.Log($"Moisture map stats: min={minValue:F4}, max={maxValue:F4}, range={(maxValue - minValue):F4}, nan={nanCount}");
+        }
+
+        var wetGradient = BuildWetGradient();
+        var colors = new Color[sourceData.Length];
+        float range = Mathf.Max(maxValue - minValue, 1e-6f);
+
+        for (int i = 0; i < sourceData.Length; i++) {
+            float value = sourceData[i];
+            if (float.IsNaN(value)) {
+                value = minValue;
+            }
+
+            float normalized = normalizeMoistureOverlay
+                ? Mathf.Clamp01((value - minValue) / range)
+                : Mathf.Clamp01(value);
+
+            float contrasted = Mathf.Clamp01((normalized - 0.5f) * moistureOverlayContrast + 0.5f);
+            colors[i] = wetGradient.Evaluate(contrasted);
+        }
+
+        var texture = new Texture2D(waterMap.width, waterMap.height, TextureFormat.RGBA32, false) {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+
+        texture.SetPixels(colors);
+        texture.Apply(true, false);
+
+        if (applyMapGeneratorOrientation) {
+            texture = MapGenerator.TextureFlip.FlipHorizontal(texture);
+            texture = MapGenerator.TextureFlip.RotateTexture90CounterClockwise(texture);
+        }
+
+        return texture;
+    }
+
+    private void LogWaterMinMax() {
+        var waterMap = simulation?.simulationContext.water?.waterMap;
+        if (waterMap == null) {
+            Debug.LogWarning("Water map is not available, min/max moisture values were not computed.");
+            return;
+        }
+
+        var data = waterMap.GetPixelData<float>(0);
+        if (data.Length == 0) {
+            Debug.LogWarning("Water map is empty, min/max moisture values were not computed.");
+            return;
+        }
+
+        float minValue = float.PositiveInfinity;
+        float maxValue = float.NegativeInfinity;
+        for (int i = 0; i < data.Length; i++) {
+            float value = data[i];
+            if (float.IsNaN(value)) {
+                continue;
+            }
+
+            if (value < minValue) minValue = value;
+            if (value > maxValue) maxValue = value;
+        }
+
+        if (float.IsInfinity(minValue) || float.IsInfinity(maxValue)) {
+            Debug.LogWarning("Water map contains only NaN values, min/max moisture values were not computed.");
+            return;
+        }
+
+        Debug.Log($"Moisture min={minValue:F6}, max={maxValue:F6}");
+    }
+
+    private static Gradient BuildWetGradient() {
+        var wetGradient = new Gradient();
+
+        var colorKeys = new GradientColorKey[3];
+        colorKeys[0] = new GradientColorKey(new Color(0.6f, 0.4f, 0.2f), 0.0f);
+        colorKeys[1] = new GradientColorKey(new Color(0.3f, 0.6f, 0.2f), 0.5f);
+        colorKeys[2] = new GradientColorKey(new Color(0.1f, 0.2f, 0.8f), 1.0f);
+
+        var alphaKeys = new GradientAlphaKey[2];
+        alphaKeys[0] = new GradientAlphaKey(1.0f, 0.0f);
+        alphaKeys[1] = new GradientAlphaKey(1.0f, 1.0f);
+
+        wetGradient.SetKeys(colorKeys, alphaKeys);
+        return wetGradient;
+    }
+
+    private static void ApplyMoistureDebugOverlay(
+        TerrainData terrainData,
+        int pixX0,
+        int pixZ0,
+        int tilePixW,
+        int tilePixH,
+        Color[] moistureDebugPixels,
+        int moistureDebugWidth,
+        int moistureDebugHeight
+    ) {
+        var tileTexture = new Texture2D(tilePixW, tilePixH, TextureFormat.RGBA32, false) {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+
+        var tileColors = new Color[tilePixW * tilePixH];
+        for (int y = 0; y < tilePixH; y++) {
+            int srcY = Mathf.Clamp(pixZ0 + y, 0, moistureDebugHeight - 1);
+            int srcRow = srcY * moistureDebugWidth;
+            int dstRow = y * tilePixW;
+
+            for (int x = 0; x < tilePixW; x++) {
+                int srcX = Mathf.Clamp(pixX0 + x, 0, moistureDebugWidth - 1);
+                tileColors[dstRow + x] = moistureDebugPixels[srcRow + srcX];
+            }
+        }
+
+        tileTexture.SetPixels(tileColors);
+        tileTexture.Apply(false, false);
+
+        var textureLayer = new TerrainLayer {
+            diffuseTexture = tileTexture,
+            normalMapTexture = null,
+            tileSize = new Vector2(terrainData.size.x, terrainData.size.z),
+        };
+
+        terrainData.terrainLayers = new TerrainLayer[] { textureLayer };
+
+        float[,,] alphamap = new float[terrainData.alphamapWidth, terrainData.alphamapHeight, 1];
+        for (int x = 0; x < terrainData.alphamapWidth; x++) {
+            for (int y = 0; y < terrainData.alphamapHeight; y++) {
+                alphamap[x, y, 0] = 1f;
+            }
+        }
+
+        terrainData.SetAlphamaps(0, 0, alphamap);
     }
 }
 

@@ -5,7 +5,7 @@ cbuffer TerrainDataBuffer : register(b0)
     float2 size;
     uint2 resolution;
 }
-Texture2D<float> heighmap : register(t0);
+Texture2D<float> heightmap : register(t0);
 
 RWTexture2D<float2> Result : register(u0);
 
@@ -24,7 +24,7 @@ void grad (uint3 uv : SV_DispatchThreadID)
     float hR = height(int2(uv.xy) + int2(1, 0), h);
     float hD = height(int2(uv.xy) - int2(0, 1), h);
     float hU = height(int2(uv.xy) + int2(0, 1), h);
-    
+
     float2 gradient = float2(hR - hL, hU - hD) / (2.0 * dxy);
 
     Result[uv.xy] = gradient;
@@ -33,5 +33,5 @@ void grad (uint3 uv : SV_DispatchThreadID)
 float height(int2 pos, float _default) {
     if (pos.x >= int(resolution.x) || pos.y >= int(resolution.y) || pos.x < 0 || pos.y < 0) return _default;
 
-    return heighmap[pos];
+    return heightmap[pos];
 }

@@ -58,8 +58,8 @@ namespace ProceduralVegetation {
         protected virtual float RecoveryScale => 0.03f;
 
         // Age-related death rates
-        protected virtual float AgeDeathEnergyRate => 0.02f;  // Energy threshold declines by this per year
-        protected virtual float AgeDeathStressRate => 0.015f; // Stress tolerance declines by this per year
+        protected virtual float AgeDeathEnergyRate => 0.0f;    // No hard energy threshold decay (only probabilistic)
+        protected virtual float AgeDeathStressRate => 0.0f;    // No hard stress threshold decay (only probabilistic)
         protected CompetitiveTreeDescriptor(
             float growthFactor,
             float seedFactor,
@@ -99,13 +99,21 @@ namespace ProceduralVegetation {
                 case FoliageInstance.FoliageType.Seed:
                     return instance.energy > 0f;
                 case FoliageInstance.FoliageType.Sapling:
-                    float saplingEnergyThreshold = -0.15f - instance.age * AgeDeathEnergyRate * 0.5f;
-                    float saplingStressThreshold = stressTolerance * (1.65f - instance.age * AgeDeathStressRate * 0.3f);
+                    float saplingEnergyThreshold = -0.15f;
+                    float saplingStressThreshold = stressTolerance * 1.65f;
                     return instance.energy > saplingEnergyThreshold && instance.stress < saplingStressThreshold;
                 case FoliageInstance.FoliageType.Mature:
-                    float matureEnergyThreshold = -0.08f - instance.age * AgeDeathEnergyRate;
-                    float matureStressThreshold = stressTolerance * (1.25f - instance.age * AgeDeathStressRate);
-                    return instance.energy > matureEnergyThreshold && instance.stress < matureStressThreshold;
+                    // Hard limits independent of age - only basic survival thresholds
+                    if (instance.energy <= -0.08f || instance.stress >= stressTolerance * 1.25f) {
+                        return false;
+                    }
+
+                    // Probabilistic death from old age
+                    // Gradual increase: ~0.15% at 100 years, ~1.5% at 300 years, ~3% at 600+ years
+                    float ageDeathChance = Mathf.Clamp01(
+                        Mathf.Pow(instance.age / 600f, 3f) * 0.03f
+                    );
+                    return !Simulation.Random.Chance(ageDeathChance);
                 default:
                     return false;
             }
