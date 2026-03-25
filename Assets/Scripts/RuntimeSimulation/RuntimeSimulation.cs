@@ -49,7 +49,7 @@ class RuntimeSimulation : MonoBehaviour {
         }
 
         var landscape = new AdvancedMountainLandscapeDescriptor() {
-            bbox = new Bounds(new Vector3(0, 0, 0), new Vector3(1000, 21, 1000)),
+            bbox = new Bounds(new Vector3(0, 0, 0), new Vector3(500, 21, 500)),
         };
         bakedLandscape = landscape.Bake(new() { resolution = new(512, 512) });
 

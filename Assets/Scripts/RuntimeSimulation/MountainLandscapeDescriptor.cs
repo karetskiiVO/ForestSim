@@ -8,7 +8,7 @@ namespace ProceduralVegetation {
         public class AdvancedMountainParams {
             public float baseHeight = 0f;
             public float peakHeight = 500f;
-            public float noiseScale = 1f;
+            public float noiseScale = 0.25f;
             public int octaves = 6;
             public float persistence = 0.5f;
             public float lacunarity = 2f;
