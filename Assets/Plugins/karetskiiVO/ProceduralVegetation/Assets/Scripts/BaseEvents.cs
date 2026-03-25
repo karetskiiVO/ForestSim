@@ -5,6 +5,8 @@ using System.Linq;
 using ProceduralVegetation.Core;
 using ProceduralVegetation.Utilities;
 
+using MIConvexHull;
+
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -112,6 +114,73 @@ namespace ProceduralVegetation {
             }
 
             ctx.points.RemoveAll(p => p.foliageInstance.type == FoliageInstance.FoliageType.Dying);
+        }
+    }
+
+    public class CrowdingStressEvent : Event {
+        private const float OvercrowdingDistance = 4.0f;
+        private const float MaxStressPerEdge = 0.15f;
+
+        private class DelaunayVertex : IVertex {
+            public double[] Position { get; set; }
+            public int PointIndex;
+        }
+
+        public override void Execute(ref SimulationContext ctx) {
+            var vertices = new List<DelaunayVertex>();
+            vertices.Capacity = ctx.points.Count;
+
+            for (int i = 0; i < ctx.points.Count; i++) {
+                var fi = ctx.points[i].foliageInstance;
+                if (fi.type != FoliageInstance.FoliageType.Sapling && fi.type != FoliageInstance.FoliageType.Mature) {
+                    continue;
+                }
+
+                vertices.Add(new DelaunayVertex {
+                    Position = new double[] { fi.position.x, fi.position.y },
+                    PointIndex = i,
+                });
+            }
+
+            if (vertices.Count < 3) {
+                return;
+            }
+
+            ITriangulation<DelaunayVertex, DefaultTriangulationCell<DelaunayVertex>> triangulation;
+            try {
+                triangulation = Triangulation.CreateDelaunay<DelaunayVertex>(vertices);
+            } catch {
+                return;
+            }
+
+            var edgeSet = new HashSet<(int a, int b)>();
+            foreach (var cell in triangulation.Cells) {
+                if (cell.Vertices == null || cell.Vertices.Length < 3) continue;
+
+                for (int e = 0; e < 3; e++) {
+                    int i1 = cell.Vertices[e].PointIndex;
+                    int i2 = cell.Vertices[(e + 1) % 3].PointIndex;
+                    if (i1 == i2) continue;
+                    if (i1 > i2) (i1, i2) = (i2, i1);
+                    edgeSet.Add((i1, i2));
+                }
+            }
+
+            foreach (var edge in edgeSet) {
+                var point1 = ctx.points[edge.a];
+                var point2 = ctx.points[edge.b];
+
+                float d = Vector2.Distance(point1.foliageInstance.position, point2.foliageInstance.position);
+                if (d >= OvercrowdingDistance) continue;
+
+                float stressDelta = (1f - Mathf.Clamp01(d / OvercrowdingDistance)) * MaxStressPerEdge;
+
+                point1.foliageInstance.stress = Mathf.Min(1f, point1.foliageInstance.stress + stressDelta);
+                point2.foliageInstance.stress = Mathf.Min(1f, point2.foliageInstance.stress + stressDelta);
+
+                ctx.points[edge.a] = point1;
+                ctx.points[edge.b] = point2;
+            }
         }
     }
 

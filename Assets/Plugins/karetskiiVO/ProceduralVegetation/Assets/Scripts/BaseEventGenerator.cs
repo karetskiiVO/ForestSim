@@ -5,6 +5,7 @@ namespace ProceduralVegetation {
                 new DeathEvent()                { time = currentTime + 0.01f },  // Remove dying trees first
                 new GrowthEvent()               { time = currentTime + 0.50f },
                 new ResourceDistributionEvent() { time = currentTime + 0.55f },
+                new CrowdingStressEvent()       { time = currentTime + 0.57f },
                 new SeedingEvent()              { time = currentTime + 0.60f },
             };
         }

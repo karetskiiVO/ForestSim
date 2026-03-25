@@ -21,10 +21,10 @@ namespace ProceduralVegetation {
         private const float MinEnergyToSeed = 0.35f;
         private const float SeedEnergyCost = 0.12f;
         private const float BaseSeedingRate = 0.55f;
-        private const float MinSpreadRadius = 2f;
-        private const float LongDistanceSeedChanceBase = 0.22f;
-        private const float LongDistanceSigmaMultiplier = 3.6f;
-        private const float LongDistanceRadiusMultiplier = 3.2f;
+        private const float MinSpreadRadius = 4.2f;
+        private const float LongDistanceSeedChanceBase = 0.42f;
+        private const float LongDistanceSigmaMultiplier = 4.5f;
+        private const float LongDistanceRadiusMultiplier = 4.5f;
         private const int SparsePopulationThreshold = 12;
 
         private readonly float growthFactor;
@@ -35,6 +35,10 @@ namespace ProceduralVegetation {
         private readonly float softPopulationCap;
 
         private int populationCount;
+
+        private readonly PIDRegulator energyPid;
+        private readonly PIDRegulator waterPid;
+        private readonly PIDRegulator lightPid;
 
         // Species-specific parameters (can be overridden)
         protected virtual float SaplingBaseUpkeep => 0.008f;
@@ -82,6 +86,10 @@ namespace ProceduralVegetation {
             this.stressTolerance = Mathf.Clamp(stressTolerance, 0.8f, 4f);
             this.matureAge = Mathf.Max(2f, matureAge);
             this.softPopulationCap = Mathf.Max(10f, softPopulationCap);
+
+            energyPid = new PIDRegulator(kp: 0.6f, ki: 0.05f, kd: 0.02f, outputMin: -0.5f, outputMax: 0.5f);
+            waterPid = new PIDRegulator(kp: 0.8f, ki: 0.04f, kd: 0.02f, outputMin: -0.2f, outputMax: 0.2f);
+            lightPid = new PIDRegulator(kp: 0.7f, ki: 0.03f, kd: 0.015f, outputMin: -0.2f, outputMax: 0.2f);
         }
 
         public override void AddResources(ref FoliageInstance instance, float energy, float water, float light) {
@@ -91,7 +99,21 @@ namespace ProceduralVegetation {
 
             float energyGain = BaseEnergyGainFactor + growthFactor * GrowthEnergyGainScale;
             float lightGain = BaseLightGainFactor + growthFactor * GrowthLightGainScale;
-            instance.energy += energy * energyGain + light * lightGain;
+
+            // Жёсткая конкуренция за ресурсы в старте и при плотной популяции
+            float densityRatio = Mathf.Clamp01(populationCount / softPopulationCap);
+            float competitionMultiplier = Mathf.Lerp(1f, 0.2f, Mathf.Pow(densityRatio, 3f));
+            float crowdStress = densityRatio * 0.30f;
+
+            // PID-регуляция для мягкого подстроения к текущим условиям
+            float energyPidAdjustment = energyPid.Update(0.5f, instance.energy);
+            float waterPidAdjustment = waterPid.Update(IdealWater, water);
+            float lightPidAdjustment = lightPid.Update(IdealLight, light);
+
+            float baseEnergyGain = energy * energyGain + light * lightGain;
+            instance.energy += baseEnergyGain * competitionMultiplier + 0.25f * (energyPidAdjustment + waterPidAdjustment + lightPidAdjustment);
+
+            instance.stress += crowdStress;
 
             float waterDelta = water - IdealWater;
             float waterDeviation = Mathf.Abs(waterDelta);
@@ -202,6 +224,11 @@ namespace ProceduralVegetation {
                 * (0.55f + crowding * 0.45f)
                 * sparseBoost
                 * 2.4f;
+
+            // Жёсткая регуляция дублирования в плотной популяции
+            if (populationCount > softPopulationCap * 0.5f) {
+                expectedSeeds *= Mathf.Lerp(0.6f, 0.2f, (populationCount - softPopulationCap * 0.5f) / (softPopulationCap * 0.5f));
+            }
 
             int seedCount = Mathf.FloorToInt(expectedSeeds);
             float remainder = expectedSeeds - seedCount;
