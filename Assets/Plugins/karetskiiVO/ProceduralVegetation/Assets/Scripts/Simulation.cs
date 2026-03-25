@@ -13,9 +13,6 @@ namespace ProceduralVegetation {
         public abstract void Grow(ref FoliageInstance instance);
         // TODO: remove allocations
         public abstract FoliageInstance[] Seed(ref FoliageInstance instance /* TODO: landscape */ );
-        public virtual void ResetPopulationCounters() { }
-        public virtual void RegisterInstance(in FoliageInstance instance) { }
-        public virtual int PopulationCount => 0;
         public virtual FoliageInstance[] ScaleSeedsByPopulation(
             FoliageInstance[] seeds,
             in FoliageInstance parentInstance
