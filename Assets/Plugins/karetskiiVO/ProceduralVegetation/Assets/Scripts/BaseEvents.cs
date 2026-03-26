@@ -110,8 +110,7 @@ namespace ProceduralVegetation {
     }
 
     public class ResourceDistributionEvent : Event {
-        public float waterFromIntegral = 100f;
-
+        public float waterFromIntegral = 10f; public float cellRadiusMultiplier = 15f;
         private const uint FixedPointScale = 65536u;
         private const string IntegralShaderResourcePath = "ProceduralVegetation/FruitfulnessIntegral";
         private const string CellIndexBakeShaderResourcePath = "ProceduralVegetation/CellIndexBake";
@@ -155,13 +154,21 @@ namespace ProceduralVegetation {
 
             var polygons = new List<Vector2>[activeIndices.Count];
 
+            var inputPoints = new (Vector2 pos, float weight)[activeIndices.Count];
+            var centers = new Vector2[activeIndices.Count];
+            var radii = new float[activeIndices.Count];
+
             if (activeIndices.Count == 1) {
                 polygons[0] = BuildRectanglePolygon(clipRect);
+                var fi = ctx.points[activeIndices[0]].foliageInstance;
+                centers[0] = fi.position;
+                radii[0] = Mathf.Max(0.1f, Mathf.Sqrt(fi.strength) * cellRadiusMultiplier);
             } else {
-                var inputPoints = new (Vector2 pos, float weight)[activeIndices.Count];
                 for (int j = 0; j < activeIndices.Count; j++) {
                     var fi = ctx.points[activeIndices[j]].foliageInstance;
                     inputPoints[j] = (fi.position, Mathf.Max(0f, fi.strength));
+                    centers[j] = fi.position;
+                    radii[j] = Mathf.Max(0.1f, Mathf.Sqrt(Mathf.Max(0f, fi.strength)) * cellRadiusMultiplier);
                 }
 
                 PowerDiagram diagram;
@@ -181,16 +188,16 @@ namespace ProceduralVegetation {
                 }
             }
 
-            float[] fruitIntegrals = IntegratePolygonsGpu(polygons, fruitSampler);
+            float[] fruitIntegrals = IntegratePolygonsGpu(polygons, fruitSampler, centers, radii);
             if (fruitIntegrals == null) return;
 
             float[] waterIntegrals = waterSampler.hasMap
-                ? IntegratePolygonsGpu(polygons, waterSampler)
+                ? IntegratePolygonsGpu(polygons, waterSampler, centers, radii)
                 : fruitIntegrals;
             if (waterSampler.hasMap && waterIntegrals == null) return;
 
             float[] lightIntegrals = lightSampler.hasMap
-                ? IntegratePolygonsGpu(polygons, lightSampler)
+                ? IntegratePolygonsGpu(polygons, lightSampler, centers, radii)
                 : fruitIntegrals;
             if (lightSampler.hasMap && lightIntegrals == null) return;
 
@@ -273,7 +280,7 @@ namespace ProceduralVegetation {
             }
         }
 
-        private static float[] IntegratePolygonsGpu(List<Vector2>[] polygons, in MapSampler sampler) {
+        private static float[] IntegratePolygonsGpu(List<Vector2>[] polygons, in MapSampler sampler, Vector2[] centers, float[] radii) {
             if (!sampler.hasMap || sampler.map == null) {
                 return null;
             }
@@ -281,7 +288,7 @@ namespace ProceduralVegetation {
             int cellCount = polygons.Length;
             if (cellCount == 0) return Array.Empty<float>();
 
-            var indexMap = BakeCellIndexMap(polygons, sampler);
+            var indexMap = BakeCellIndexMap(polygons, sampler, centers, radii);
             if (indexMap == null) {
                 return null;
             }
@@ -320,12 +327,12 @@ namespace ProceduralVegetation {
             }
         }
 
-        private static RenderTexture BakeCellIndexMap(List<Vector2>[] polygons, in MapSampler sampler) {
+        private static RenderTexture BakeCellIndexMap(List<Vector2>[] polygons, in MapSampler sampler, Vector2[] centers, float[] radii) {
             if (!EnsureCellIndexBakeMaterialReady()) {
                 return null;
             }
 
-            var mesh = BuildCellIndexMesh(polygons);
+            var mesh = BuildCellIndexMesh(polygons, centers, radii);
             if (mesh == null) {
                 return null;
             }
@@ -378,10 +385,11 @@ namespace ProceduralVegetation {
             UnityEngine.Object.Destroy(obj);
         }
 
-        private static Mesh BuildCellIndexMesh(List<Vector2>[] polygons) {
+        private static Mesh BuildCellIndexMesh(List<Vector2>[] polygons, Vector2[] centers, float[] radii) {
             var vertices = new List<Vector3>(polygons.Length * 12);
             var triangles = new List<int>(polygons.Length * 18);
             var uv1 = new List<Vector2>(polygons.Length * 12);
+            var uv2 = new List<Vector3>(polygons.Length * 12);
 
             for (int cellIndex = 0; cellIndex < polygons.Length; cellIndex++) {
                 var poly = polygons[cellIndex];
@@ -391,6 +399,9 @@ namespace ProceduralVegetation {
 
                 float encodedIndex = cellIndex + 1f;
                 Vector2 p0 = poly[0];
+                Vector2 center = centers[cellIndex];
+                float radius = radii[cellIndex];
+
                 for (int i = 1; i < poly.Count - 1; i++) {
                     Vector2 p1 = poly[i];
                     Vector2 p2 = poly[i + 1];
@@ -403,6 +414,10 @@ namespace ProceduralVegetation {
                     uv1.Add(new Vector2(encodedIndex, 0f));
                     uv1.Add(new Vector2(encodedIndex, 0f));
                     uv1.Add(new Vector2(encodedIndex, 0f));
+
+                    uv2.Add(new Vector3(center.x, center.y, radius));
+                    uv2.Add(new Vector3(center.x, center.y, radius));
+                    uv2.Add(new Vector3(center.x, center.y, radius));
 
                     triangles.Add(baseVertex);
                     triangles.Add(baseVertex + 1);
@@ -419,6 +434,7 @@ namespace ProceduralVegetation {
             };
             mesh.SetVertices(vertices);
             mesh.SetUVs(1, uv1);
+            mesh.SetUVs(2, uv2);
             mesh.SetTriangles(triangles, 0, true);
             mesh.RecalculateBounds();
             return mesh;

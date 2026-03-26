@@ -68,7 +68,7 @@ namespace ProceduralVegetation {
         protected float saplingStartAge = 1f;
         protected float matureStartAge = 5f;
 
-        protected float seedSpreadRadius = 1000f;
+        protected float seedSpreadRadius = 100f;
         protected int seedSpreadCount = 5;
 
         protected float seedStrength = 0.2f;
