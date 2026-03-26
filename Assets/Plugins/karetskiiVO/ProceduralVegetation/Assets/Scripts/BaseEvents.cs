@@ -28,10 +28,6 @@ namespace ProceduralVegetation {
         public override void Execute(ref SimulationContext ctx) {
             var newFoliage = new List<SimulationPoint>();
 
-            for (int i = 0; i < ctx.speciesDescriptors.Count; i++) {
-                ctx.speciesDescriptors[i].ResetPopulationCounters();
-            }
-
             for (int i = 0; i < ctx.points.Count; i++) {
                 var point = ctx.points[i];
                 if (point.foliageInstance.type == FoliageInstance.FoliageType.Dying) {
@@ -39,14 +35,12 @@ namespace ProceduralVegetation {
                 }
 
                 var descriptor = ctx.speciesDescriptors[point.speciesID];
-                descriptor.RegisterInstance(in point.foliageInstance);
             }
 
             for (int i = 0; i < ctx.points.Count; i++) {
                 var point = ctx.points[i];
                 var descriptor = ctx.speciesDescriptors[point.speciesID];
                 var seeds = descriptor.Seed(ref point.foliageInstance);
-                seeds = descriptor.ScaleSeedsByPopulation(seeds, point.foliageInstance);
 
                 newFoliage.AddRange(seeds?.Select(seed => new SimulationPoint(
                     seed.position,

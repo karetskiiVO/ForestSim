@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
+using System.Linq;
 
 using ProceduralVegetation.Core;
 
@@ -13,15 +12,6 @@ namespace ProceduralVegetation {
         public abstract void Grow(ref FoliageInstance instance);
         // TODO: remove allocations
         public abstract FoliageInstance[] Seed(ref FoliageInstance instance /* TODO: landscape */ );
-        public virtual void ResetPopulationCounters() { }
-        public virtual void RegisterInstance(in FoliageInstance instance) { }
-        public virtual int PopulationCount => 0;
-        public virtual FoliageInstance[] ScaleSeedsByPopulation(
-            FoliageInstance[] seeds,
-            in FoliageInstance parentInstance
-        ) {
-            return seeds;
-        }
         public abstract bool Alive(in FoliageInstance instance);
         public abstract void AddResources(ref FoliageInstance instance, float energy, float water, float light);
         public abstract FoliageInstance CreateSeed(Vector2 position);
@@ -44,14 +34,6 @@ namespace ProceduralVegetation {
     }
 
     public class Simulation {
-        private struct SpeciesStats {
-            public int total;
-            public int seed;
-            public int sapling;
-            public int mature;
-            public int dying;
-        }
-
         public struct SimulationPoint {
             public FoliageInstance foliageInstance;
 
@@ -86,14 +68,19 @@ namespace ProceduralVegetation {
             public float strength => point.foliageInstance.strength;
             public FoliageInstance.FoliageType type => point.foliageInstance.type;
 
-            public TreeSpeciesDescriptor descriptor => simulation.simulationContext.speciesDescriptors[point.speciesID];
+            public TreeSpeciesDescriptor descriptor => speciesDescriptors[point.speciesID];
 
             private SimulationPoint point;
-            private Simulation simulation;
+            private List<TreeSpeciesDescriptor> speciesDescriptors;
 
             public SimulationPointView(SimulationPoint point, Simulation simulation) {
                 this.point = point;
-                this.simulation = simulation;
+                speciesDescriptors = simulation.simulationContext.speciesDescriptors;
+            }
+
+            public SimulationPointView(SimulationPoint point, List<TreeSpeciesDescriptor> speciesDescriptors) {
+                this.point = point;
+                this.speciesDescriptors = speciesDescriptors;
             }
         }
 
@@ -107,6 +94,13 @@ namespace ProceduralVegetation {
             public LanscapeFruitfillness fruitfulness;
             public LanscapeWater water;
             public LanscapeLighting lighting;
+
+            public readonly IEnumerable<SimulationPointView> pointsView {
+                get {
+                    var speciesDescriptors = this.speciesDescriptors;
+                    return points.Select(point => new SimulationPointView(point, speciesDescriptors));
+                }
+            }
         }
 
         public abstract class Event {
@@ -224,8 +218,6 @@ namespace ProceduralVegetation {
                     simEvent.time = scheduledTime;
                     simEvent.Execute(ref simulationContext);
                 }
-
-                LogSpeciesStats(yearStartTime);
             }
 
             currentTime += simTime;
@@ -241,46 +233,6 @@ namespace ProceduralVegetation {
             foreach (var point in simulationContext.deadPoints) {
                 yield return new SimulationPointView(point, this);
             }
-        }
-
-        private void LogSpeciesStats(float year) {
-            int speciesCount = simulationContext.speciesDescriptors.Count;
-            var stats = new SpeciesStats[speciesCount];
-
-            for (int i = 0; i < simulationContext.points.Count; i++) {
-                var point = simulationContext.points[i];
-                if (point.speciesID < 0 || point.speciesID >= speciesCount) {
-                    continue;
-                }
-
-                stats[point.speciesID].total++;
-                switch (point.foliageInstance.type) {
-                    case FoliageInstance.FoliageType.Seed:
-                        stats[point.speciesID].seed++;
-                        break;
-                    case FoliageInstance.FoliageType.Sapling:
-                        stats[point.speciesID].sapling++;
-                        break;
-                    case FoliageInstance.FoliageType.Mature:
-                        stats[point.speciesID].mature++;
-                        break;
-                    case FoliageInstance.FoliageType.Dying:
-                        stats[point.speciesID].dying++;
-                        break;
-                }
-            }
-
-            var message = new StringBuilder();
-            message.Append($"Year {year:0}: total={simulationContext.points.Count}");
-
-            for (int i = 0; i < speciesCount; i++) {
-                var descriptor = simulationContext.speciesDescriptors[i];
-                var speciesName = descriptor != null ? descriptor.GetType().Name : "UnknownSpecies";
-                var species = stats[i];
-                message.Append($" | [{i}:{speciesName}] total={species.total}, seed={species.seed}, sapling={species.sapling}, mature={species.mature}, dying={species.dying}");
-            }
-
-            Debug.Log(message.ToString());
         }
 
         // TODO: make it possible to use multiple random generators with different seeds

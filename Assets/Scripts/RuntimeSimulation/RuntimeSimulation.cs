@@ -14,40 +14,8 @@ class RuntimeSimulation : MonoBehaviour {
     [SerializeField]
     RuntimeSpeciesContainer[] speciesContainers;
 
-    [SerializeField]
-    bool drawMoistureOverlay = true;
-
-    [SerializeField]
-    bool normalizeMoistureOverlay = true;
-
-    [SerializeField]
-    [Range(0.1f, 4f)]
-    float moistureOverlayContrast = 1.1f;
-
-    [SerializeField]
-    bool applyMapGeneratorOrientation = false;
-
-    [SerializeField]
-    bool logMoistureOverlayStats = true;
-
-    private bool simulationInitialized;
 
     private void Start() {
-        EnsureSimulationInitialized();
-
-        if (simulation == null) {
-            Debug.LogError("Failed to initialize simulation in Start().");
-            return;
-        }
-
-        _ = Run();
-    }
-
-    private void EnsureSimulationInitialized() {
-        if (simulationInitialized) {
-            return;
-        }
-
         var landscape = new AdvancedMountainLandscapeDescriptor() {
             bbox = new Bounds(new Vector3(0, 0, 0), new Vector3(500, 21, 500)),
         };
@@ -55,7 +23,9 @@ class RuntimeSimulation : MonoBehaviour {
 
         simulation = new Simulation()
             .SetLandscape(bakedLandscape)
-            .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f);
+            .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f)
+            //.AddEventGenerator()
+        ;
 
         LogWaterMinMax();
 
@@ -72,7 +42,12 @@ class RuntimeSimulation : MonoBehaviour {
             }
         }
 
-        simulationInitialized = true;
+        if (simulation == null) {
+            Debug.LogError("Failed to initialize simulation in Start().");
+            return;
+        }
+
+        _ = Run();
     }
 
     private async UniTaskVoid Run() {
