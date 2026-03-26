@@ -80,8 +80,31 @@ namespace ProceduralVegetation {
         protected float overpopulationStressWeight = 0.05f;
 
         public override void AddResources(ref FoliageInstance instance, float energy, float water, float light) {
-            instance.energy += energy;
-            instance.stress += energyStressWeight * Mathf.Max(0f, requiredEnergy - energy);
+            // Сокращаем поступающую энергию в два раза для баланса
+            float incomingEnergy = energy * 0.5f;
+
+            instance.energy += incomingEnergy;
+
+            // Дерево тратит энергию на выживание
+            instance.energy -= requiredEnergy;
+
+            if (instance.energy < 0f) {
+                // Нехватка энергии конвертируется в стресс
+                instance.stress += energyStressWeight * Mathf.Abs(instance.energy);
+                // Энергия не может быть отрицательной (иначе она никогда не восстановится)
+                instance.energy = 0f;
+            } else {
+                // При профиците энергии стресс постепенно спадает
+                if (instance.stress > 0f) {
+                    instance.stress = Mathf.Max(0f, instance.stress - incomingEnergy * 0.2f);
+                }
+                // Ограничиваем запас максимальной энергии (кап), чтобы он не рос бесконечно
+                float maxEnergyCap = requiredEnergy * 10f;
+                if (instance.energy > maxEnergyCap) {
+                    instance.energy = maxEnergyCap;
+                }
+            }
+
             instance.stress += waterStressWeight * Mathf.Max(0f, requiredWater - water);
             // instance.stress += lightStressWeight * Mathf.Max(0f, requiredLight - light);
 
@@ -96,13 +119,14 @@ namespace ProceduralVegetation {
         }
 
         public override bool Alive(in FoliageInstance instance) {
-            return instance.energy > 0f &&
-                instance.type switch {
-                    FoliageInstance.FoliageType.Seed => instance.stress < acceptableSeedStress,
-                    FoliageInstance.FoliageType.Sapling => instance.stress < acceptableSaplingStress,
-                    FoliageInstance.FoliageType.Mature => instance.stress < acceptableMatureStress,
-                    _ => false,
-                };
+            // Убрали проверку instance.energy > 0, чтобы дерево не гибло в один клик от 0 энергии.
+            // Оно получает стресс от нулей и умирает когда стресс выходит за лимит.
+            return instance.type switch {
+                FoliageInstance.FoliageType.Seed => instance.stress < acceptableSeedStress,
+                FoliageInstance.FoliageType.Sapling => instance.stress < acceptableSaplingStress,
+                FoliageInstance.FoliageType.Mature => instance.stress < acceptableMatureStress,
+                _ => false,
+            };
         }
 
         public override FoliageInstance CreateSeed(Vector2 position) {
@@ -126,10 +150,30 @@ namespace ProceduralVegetation {
             UpdateType(ref instance);
 
             instance.strength += energyConversation * instance.energy;
+            // Жёсткое ограничение максимальной силы.
+            // Иначе дерево бесконечно увеличивает свою ячейку Вороного, забирая все ресурсы карты!
+            if (instance.strength > maxStrength) {
+                instance.strength = maxStrength;
+            }
         }
 
         public override FoliageInstance[] Seed(ref FoliageInstance instance) {
-            var seeds = new FoliageInstance[instance.type == FoliageInstance.FoliageType.Mature ? seedSpreadCount : 0];
+            int count = instance.type == FoliageInstance.FoliageType.Mature ? seedSpreadCount : 0;
+
+            // Уменьшение количества семян пропорционально стрессу
+            if (count > 0 && acceptableMatureStress > 0f) {
+                float stressRatio = instance.stress / acceptableMatureStress;
+                if (stressRatio > 0.8f) {
+                    count = 0; // Дерево слишком истощено для плодоношения
+                } else if (stressRatio > 0f) {
+                    // Чем больше стресс, тем меньше семян
+                    float yield = count * (1f - stressRatio);
+                    // Вероятностно определяем конечное число
+                    count = Mathf.FloorToInt(yield) + (Simulation.Random.Chance(yield % 1f) ? 1 : 0);
+                }
+            }
+
+            var seeds = new FoliageInstance[count];
 
             for (int i = 0; i < seeds.Length; i++) {
                 seeds[i] = CreateSeed(
@@ -159,6 +203,7 @@ namespace ProceduralVegetation {
             seedSpreadRadius = 150f;
             seedSpreadCount = 1;
             populationLimit = 150;
+            maxStrength = 8f; // Дуб выдавливает конкурентов
         }
     }
 
@@ -225,6 +270,7 @@ namespace ProceduralVegetation {
             seedSpreadRadius = 150f;
             seedSpreadCount = 2;
             populationLimit = 2000;
+            maxStrength = 6f; // Ель легко завоевывает пространство
         }
     }
 
