@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using Cysharp.Threading.Tasks;
 
 using ProceduralVegetation;
 using ProceduralVegetation.Utilities;
+
+using Unity.VisualScripting;
 
 using UnityEngine;
 
@@ -14,8 +18,11 @@ class RuntimeSimulation : MonoBehaviour {
     [SerializeField]
     RuntimeSpeciesContainer[] speciesContainers;
 
+    List<TreeSpeciesCountDescriptor> descriptors;
 
     private void Start() {
+        descriptors ??= new();
+
         var landscape = new AdvancedMountainLandscapeDescriptor() {
             bbox = new Bounds(new Vector3(0, 0, 0), new Vector3(500, 21, 500)),
         };
@@ -24,8 +31,7 @@ class RuntimeSimulation : MonoBehaviour {
         simulation = new Simulation()
             .SetLandscape(bakedLandscape)
             .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f)
-        //.AddEventGenerator()
-        ;
+            .AddEventGenerator(new TreeSpeciesCountDescriptor.TreeSpeciesCounterEventGenerator());
 
         DrawLandscape();
 
@@ -37,8 +43,12 @@ class RuntimeSimulation : MonoBehaviour {
                 var initialPoints = speciesContainer.GetInitialPoints(bakedLandscape.bbox);
 
                 simulation.AddSpecies(descriptor, initialPoints);
+                descriptors.Add(descriptor as TreeSpeciesCountDescriptor);
             }
         }
+
+
+            Debug.Log("aboba");
 
         if (simulation == null) {
             Debug.LogError("Failed to initialize simulation in Start().");
@@ -56,8 +66,15 @@ class RuntimeSimulation : MonoBehaviour {
 
         simulation.AddEventGenerator(new BaseEventGenerator());
 
+        float accumulatedTime = 0f;
         while (true) {
             simulation.Run(1);
+            accumulatedTime += 1f;
+
+            Debug.Log(
+                $"{accumulatedTime:F0} years; {simulation.simulationContext.points.Count}; " +
+                string.Join(" ", descriptors.Select(descr => $"({descr.GetType()}:{descr.Count})"))
+            );
 
             DrawTrees();
             await UniTask.Delay(TimeSpan.FromSeconds(0.1));

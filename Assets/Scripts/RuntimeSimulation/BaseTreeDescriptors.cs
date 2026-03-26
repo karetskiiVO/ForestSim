@@ -24,12 +24,20 @@ namespace ProceduralVegetation {
         public class TreeSpeciesCounterEventGenerator : EventGenerator {
             public override ProceduralVegetation.Simulation.Event[] Generate(float currentTime) {
                 return new ProceduralVegetation.Simulation.Event[] {
-                    new TreeSpeciesCounterEvent(){ time = 0f },
+                    new TreeSpeciesCounterEvent(){ time = 0.999f },
                 };
             }
 
             public class TreeSpeciesCounterEvent : ProceduralVegetation.Simulation.Event {
                 public override void Execute(ref SimulationContext context) {
+                    for (int i = 0; i < context.points.Count; i++) {
+                        var descriptor = context.speciesDescriptors[context.points[i].speciesID];
+
+                        if (descriptor is not TreeSpeciesCountDescriptor) continue;
+                        var point = context.points[i];
+                        (descriptor as TreeSpeciesCountDescriptor).ResetCount();
+                    }
+
                     for (int i = 0; i < context.points.Count; i++) {
                         var descriptor = context.speciesDescriptors[context.points[i].speciesID];
 
@@ -67,11 +75,24 @@ namespace ProceduralVegetation {
         protected float maxStrength = 2f;
         protected float energyConversation = 0.5f;
 
+        // Примерный лимит популяции вида. При его превышении возникает случайный стресс от перенаселения
+        protected int populationLimit = 50000;
+        protected float overpopulationStressWeight = 0.05f;
+
         public override void AddResources(ref FoliageInstance instance, float energy, float water, float light) {
             instance.energy += energy;
             instance.stress += energyStressWeight * Mathf.Max(0f, requiredEnergy - energy);
             instance.stress += waterStressWeight * Mathf.Max(0f, requiredWater - water);
             // instance.stress += lightStressWeight * Mathf.Max(0f, requiredLight - light);
+
+            // Механика угнетения при перенаселении вида (мягкое ограничение численности)
+            if (Count > populationLimit) {
+                float excessRatio = (float)Count / populationLimit - 1f;
+                // Используем хеширование координат для получения псевдослучайного числа [0..1],
+                // так как UnityEngine.Random не потокобезопасен (на случай использования Jobs)
+                float pseudoRandom = Mathf.Abs(Mathf.Sin(instance.position.x * 12.989f + instance.position.y * 78.233f) * 43758.545f) % 1f;
+                instance.stress += overpopulationStressWeight * excessRatio * pseudoRandom;
+            }
         }
 
         public override bool Alive(in FoliageInstance instance) {
@@ -122,115 +143,130 @@ namespace ProceduralVegetation {
 
     public class OakDescriptor : RuntimeSpeciesDescriptor {
         public OakDescriptor() {
-            energyStressWeight = 1.2f;
-            requiredEnergy = 1.5f;
-            waterStressWeight = 1.1f;
-            requiredWater = 1.2f;
+            // Климаксный вид: теневынослив, нетребователен к свету, медленно растет
+            energyStressWeight = 0.5f;
+            requiredEnergy = 0.6f; // НИЗКАЯ потребность (выживает в тени под пологом)
+            waterStressWeight = 0.5f;
+            requiredWater = 0.8f;
 
-            acceptableSeedStress = 0.45f;
-            acceptableSaplingStress = 0.65f;
-            acceptableMatureStress = 0.85f;
+            acceptableSeedStress = 2.0f; // Почти невозможно убить росток стрессом
+            acceptableSaplingStress = 2.0f;
+            acceptableMatureStress = 2.5f;
 
-            seedEnergy = 1.4f;
-            saplingStartAge = 2f;
-            matureStartAge = 10f;
-            seedSpreadRadius = 450f;
-            seedSpreadCount = 3;
+            seedEnergy = 4.0f; // Большой стартовый запас
+            saplingStartAge = 8f;
+            matureStartAge = 25f; // Снижено, чтобы успевали дать потомство
+            seedSpreadRadius = 150f;
+            seedSpreadCount = 1;
+            populationLimit = 150;
         }
     }
 
     public class PineDescriptor : RuntimeSpeciesDescriptor {
         public PineDescriptor() {
-            energyStressWeight = 1.0f;
-            requiredEnergy = 1.2f;
-            waterStressWeight = 0.9f;
-            requiredWater = 1.0f;
+            // Переходный/Пионерный вид: светолюбив, но засухоустойчив
+            energyStressWeight = 1.2f;
+            requiredEnergy = 1.2f; // Нуждается в свете
+            waterStressWeight = 0.4f;
+            requiredWater = 0.5f;
 
-            acceptableSeedStress = 0.55f;
-            acceptableSaplingStress = 0.75f;
-            acceptableMatureStress = 0.9f;
+            acceptableSeedStress = 0.8f;
+            acceptableSaplingStress = 1.0f;
+            acceptableMatureStress = 1.2f;
 
-            seedEnergy = 1.1f;
-            saplingStartAge = 1.5f;
-            matureStartAge = 8f;
-            seedSpreadRadius = 600f;
-            seedSpreadCount = 6;
+            seedEnergy = 2.0f;
+            saplingStartAge = 6f;
+            matureStartAge = 15f;
+            seedSpreadRadius = 250f;
+            seedSpreadCount = 2;
+            populationLimit = 1500;
         }
     }
 
     public class BirchDescriptor : RuntimeSpeciesDescriptor {
         public BirchDescriptor() {
-            energyStressWeight = 1.1f;
-            requiredEnergy = 1.1f;
-            waterStressWeight = 1.3f;
-            requiredWater = 1.3f;
+            // Пионер: требует очень много света, быстро вытесняется другими деревьями
+            energyStressWeight = 3.0f; // Умножает стресс в тени х3
+            requiredEnergy = 1.5f; // Очень высокая потребность в энергии
+            waterStressWeight = 1.5f;
+            requiredWater = 1.2f;
 
-            acceptableSeedStress = 0.5f;
-            acceptableSaplingStress = 0.7f;
-            acceptableMatureStress = 0.9f;
+            // Как только дереву перестает хватать света или воды, оно почти мгновенно умирает:
+            acceptableSeedStress = 0.2f;
+            acceptableSaplingStress = 0.4f;
+            acceptableMatureStress = 0.5f;
 
-            seedEnergy = 1.15f;
-            saplingStartAge = 1f;
-            matureStartAge = 6f;
-            seedSpreadRadius = 550f;
-            seedSpreadCount = 5;
+            seedEnergy = 0.5f;
+            saplingStartAge = 5f;
+            matureStartAge = 12f;
+            seedSpreadRadius = 250f; // Урезал радиус, чтобы локализовать очаги
+            seedSpreadCount = 1; // Убрал геометрическую прогрессию
+
+            populationLimit = 2000;
+            overpopulationStressWeight = 8.0f; // Смертельный стресс при перенаселении
         }
     }
 
     public class SpruceDescriptor : RuntimeSpeciesDescriptor {
         public SpruceDescriptor() {
-            energyStressWeight = 1.1f;
-            requiredEnergy = 1.3f;
-            waterStressWeight = 1.0f;
-            requiredWater = 1.1f;
+            // Климаксный вид: крайне теневыносливая (минимальная потребность в энергии)
+            energyStressWeight = 0.6f;
+            requiredEnergy = 0.5f;
+            waterStressWeight = 0.8f;
+            requiredWater = 1.0f;
 
-            acceptableSeedStress = 0.5f;
-            acceptableSaplingStress = 0.7f;
-            acceptableMatureStress = 0.88f;
+            acceptableSeedStress = 1.5f;
+            acceptableSaplingStress = 1.8f;
+            acceptableMatureStress = 2.0f;
 
-            seedEnergy = 1.2f;
-            saplingStartAge = 1.8f;
-            matureStartAge = 9f;
-            seedSpreadRadius = 620f;
-            seedSpreadCount = 5;
+            seedEnergy = 3.0f;
+            saplingStartAge = 8f;
+            matureStartAge = 20f;
+            seedSpreadRadius = 150f;
+            seedSpreadCount = 2;
+            populationLimit = 2000;
         }
     }
 
     public class LindenDescriptor : RuntimeSpeciesDescriptor {
         public LindenDescriptor() {
-            energyStressWeight = 1.3f;
-            requiredEnergy = 1.4f;
-            waterStressWeight = 1.2f;
-            requiredWater = 1.4f;
+            // Умеренная теневыносливость
+            energyStressWeight = 0.8f;
+            requiredEnergy = 0.8f;
+            waterStressWeight = 0.8f;
+            requiredWater = 1.0f;
 
-            acceptableSeedStress = 0.48f;
-            acceptableSaplingStress = 0.68f;
-            acceptableMatureStress = 0.88f;
+            acceptableSeedStress = 1.0f;
+            acceptableSaplingStress = 1.5f;
+            acceptableMatureStress = 2.0f;
 
-            seedEnergy = 1.25f;
-            saplingStartAge = 2.5f;
-            matureStartAge = 10f;
-            seedSpreadRadius = 520f;
-            seedSpreadCount = 4;
+            seedEnergy = 3.0f;
+            saplingStartAge = 8f;
+            matureStartAge = 22f;
+            seedSpreadRadius = 150f;
+            seedSpreadCount = 1;
+            populationLimit = 400;
         }
     }
 
     public class BushDescriptor : RuntimeSpeciesDescriptor {
         public BushDescriptor() {
-            energyStressWeight = 0.9f;
-            requiredEnergy = 0.9f;
-            waterStressWeight = 1.0f;
-            requiredWater = 0.95f;
+            // Теневой подлесок: выживает на остатках ресурсов
+            energyStressWeight = 0.5f;
+            requiredEnergy = 0.3f;
+            waterStressWeight = 0.5f;
+            requiredWater = 0.3f;
 
-            acceptableSeedStress = 0.6f;
-            acceptableSaplingStress = 0.8f;
-            acceptableMatureStress = 0.95f;
+            acceptableSeedStress = 1.5f;
+            acceptableSaplingStress = 1.5f;
+            acceptableMatureStress = 2.0f;
 
             seedEnergy = 1.0f;
-            saplingStartAge = 0.8f;
-            matureStartAge = 4f;
-            seedSpreadRadius = 400f;
-            seedSpreadCount = 8;
+            saplingStartAge = 2f;
+            matureStartAge = 8f;
+            seedSpreadRadius = 50f;
+            seedSpreadCount = 2;
+            populationLimit = 6000;
         }
     }
 }
