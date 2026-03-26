@@ -24,10 +24,8 @@ class RuntimeSimulation : MonoBehaviour {
         simulation = new Simulation()
             .SetLandscape(bakedLandscape)
             .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f)
-            //.AddEventGenerator()
+        //.AddEventGenerator()
         ;
-
-        LogWaterMinMax();
 
         DrawLandscape();
 
@@ -60,6 +58,7 @@ class RuntimeSimulation : MonoBehaviour {
 
         while (true) {
             simulation.Run(1);
+
             DrawTrees();
             await UniTask.Delay(TimeSpan.FromSeconds(0.1));
         }
@@ -127,15 +126,6 @@ class RuntimeSimulation : MonoBehaviour {
         Color[] moistureDebugPixels = null;
         int moistureDebugWidth = 0;
         int moistureDebugHeight = 0;
-
-        if (drawMoistureOverlay) {
-            moistureDebugTexture = BuildMoistureDebugTexture();
-            if (moistureDebugTexture != null) {
-                moistureDebugPixels = moistureDebugTexture.GetPixels();
-                moistureDebugWidth = moistureDebugTexture.width;
-                moistureDebugHeight = moistureDebugTexture.height;
-            }
-        }
 
         GameObject terrainParent;
         if (parent != null) {
@@ -222,106 +212,6 @@ class RuntimeSimulation : MonoBehaviour {
         if (moistureDebugTexture != null) {
             Destroy(moistureDebugTexture);
         }
-    }
-
-    private Texture2D BuildMoistureDebugTexture() {
-        var waterMap = simulation?.simulationContext.water?.waterMap;
-        if (waterMap == null) {
-            return null;
-        }
-
-        var sourceData = waterMap.GetPixelData<float>(0);
-        if (sourceData.Length == 0) {
-            return null;
-        }
-
-        float minValue = float.PositiveInfinity;
-        float maxValue = float.NegativeInfinity;
-        int nanCount = 0;
-        for (int i = 0; i < sourceData.Length; i++) {
-            float value = sourceData[i];
-            if (float.IsNaN(value)) {
-                nanCount++;
-                continue;
-            }
-
-            if (value < minValue) minValue = value;
-            if (value > maxValue) maxValue = value;
-        }
-
-        if (float.IsInfinity(minValue) || float.IsInfinity(maxValue)) {
-            return null;
-        }
-
-        if (logMoistureOverlayStats) {
-            Debug.Log($"Moisture map stats: min={minValue:F4}, max={maxValue:F4}, range={(maxValue - minValue):F4}, nan={nanCount}");
-        }
-
-        var wetGradient = BuildWetGradient();
-        var colors = new Color[sourceData.Length];
-        float range = Mathf.Max(maxValue - minValue, 1e-6f);
-
-        for (int i = 0; i < sourceData.Length; i++) {
-            float value = sourceData[i];
-            if (float.IsNaN(value)) {
-                value = minValue;
-            }
-
-            float normalized = normalizeMoistureOverlay
-                ? Mathf.Clamp01((value - minValue) / range)
-                : Mathf.Clamp01(value);
-
-            float contrasted = Mathf.Clamp01((normalized - 0.5f) * moistureOverlayContrast + 0.5f);
-            colors[i] = wetGradient.Evaluate(contrasted);
-        }
-
-        var texture = new Texture2D(waterMap.width, waterMap.height, TextureFormat.RGBA32, false) {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-        };
-
-        texture.SetPixels(colors);
-        texture.Apply(true, false);
-
-        if (applyMapGeneratorOrientation) {
-            texture = MapGenerator.TextureFlip.FlipHorizontal(texture);
-            texture = MapGenerator.TextureFlip.RotateTexture90CounterClockwise(texture);
-        }
-
-        return texture;
-    }
-
-    private void LogWaterMinMax() {
-        var waterMap = simulation?.simulationContext.water?.waterMap;
-        if (waterMap == null) {
-            Debug.LogWarning("Water map is not available, min/max moisture values were not computed.");
-            return;
-        }
-
-        var data = waterMap.GetPixelData<float>(0);
-        if (data.Length == 0) {
-            Debug.LogWarning("Water map is empty, min/max moisture values were not computed.");
-            return;
-        }
-
-        float minValue = float.PositiveInfinity;
-        float maxValue = float.NegativeInfinity;
-        for (int i = 0; i < data.Length; i++) {
-            float value = data[i];
-            if (float.IsNaN(value)) {
-                continue;
-            }
-
-            if (value < minValue) minValue = value;
-            if (value > maxValue) maxValue = value;
-        }
-
-        if (float.IsInfinity(minValue) || float.IsInfinity(maxValue)) {
-            Debug.LogWarning("Water map contains only NaN values, min/max moisture values were not computed.");
-            return;
-        }
-
-        Debug.Log($"Moisture min={minValue:F6}, max={maxValue:F6}");
     }
 
     private static Gradient BuildWetGradient() {
