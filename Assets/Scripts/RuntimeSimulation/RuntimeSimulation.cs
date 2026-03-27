@@ -18,6 +18,20 @@ class RuntimeSimulation : MonoBehaviour {
     [SerializeField]
     RuntimeSpeciesContainer[] speciesContainers;
 
+    [SerializeField]
+    [Range(1, 8)]
+    int fruitfulnessNoiseOctaves = 4;
+
+    [SerializeField]
+    [Range(0.1f, 0.95f)]
+    float fruitfulnessNoisePersistence = 0.5f;
+
+    [SerializeField]
+    float fruitfulnessNoiseScale = 0.02f;
+
+    [SerializeField]
+    int fruitfulnessNoiseSeed = 1337;
+
     List<TreeSpeciesCountDescriptor> descriptors;
 
     private void Start() {
@@ -28,10 +42,20 @@ class RuntimeSimulation : MonoBehaviour {
         };
         bakedLandscape = landscape.Bake(new() { resolution = new(512, 512) });
 
+        var fruitfulnessMap = CreateFruitfulnessNoiseMap(
+            bakedLandscape.heightmap.width,
+            bakedLandscape.heightmap.height
+        );
+
         simulation = new Simulation()
             .SetLandscape(bakedLandscape)
+            .SetFruitfulness(new LanscapeFruitfillness() {
+                fruitfulnessMap = fruitfulnessMap,
+                fruitfulnessScale = 0.00005f,
+            })
             .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f)
-            .AddEventGenerator(new TreeSpeciesCountDescriptor.TreeSpeciesCounterEventGenerator());
+            .AddEventGenerator(new TreeSpeciesCountDescriptor.TreeSpeciesCounterEventGenerator())
+            .AddEventGenerator(new EnergyLoggerEventGenerator());
 
         DrawLandscape();
 
@@ -47,15 +71,51 @@ class RuntimeSimulation : MonoBehaviour {
             }
         }
 
-
-            Debug.Log("aboba");
-
         if (simulation == null) {
             Debug.LogError("Failed to initialize simulation in Start().");
             return;
         }
 
         _ = Run();
+    }
+
+    private Texture2D CreateFruitfulnessNoiseMap(int width, int height) {
+        var map = new Texture2D(width, height, TextureFormat.RFloat, false) {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+
+        var data = new float[width * height];
+        var random = new System.Random(fruitfulnessNoiseSeed);
+        float offsetX = random.Next(-100000, 100000);
+        float offsetY = random.Next(-100000, 100000);
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float total = 0f;
+                float amplitude = 1f;
+                float frequency = 1f;
+                float maxValue = 0f;
+
+                for (int octave = 0; octave < fruitfulnessNoiseOctaves; octave++) {
+                    float sampleX = (x + offsetX) * fruitfulnessNoiseScale * frequency;
+                    float sampleY = (y + offsetY) * fruitfulnessNoiseScale * frequency;
+
+                    total += Mathf.PerlinNoise(sampleX, sampleY) * amplitude;
+                    maxValue += amplitude;
+                    amplitude *= fruitfulnessNoisePersistence;
+                    frequency *= 2f;
+                }
+
+                data[y * width + x] = maxValue > 0f
+                    ? Mathf.Clamp01(total / maxValue)
+                    : 0f;
+            }
+        }
+
+        map.SetPixelData(data, 0);
+        map.Apply(false, false);
+        return map;
     }
 
     private async UniTaskVoid Run() {
@@ -77,7 +137,7 @@ class RuntimeSimulation : MonoBehaviour {
             );
 
             DrawTrees();
-            await UniTask.Delay(TimeSpan.FromSeconds(0.1));
+            await UniTask.Delay(TimeSpan.FromSeconds(1));
         }
     }
 

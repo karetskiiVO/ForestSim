@@ -80,28 +80,21 @@ namespace ProceduralVegetation {
         protected float overpopulationStressWeight = 0.05f;
 
         public override void AddResources(ref FoliageInstance instance, float energy, float water, float light) {
-            // Сокращаем поступающую энергию в два раза для баланса
-            float incomingEnergy = energy * 0.5f;
+            // За год дерево получает ровно интеграл по карте плодородия (без дополнительного масштаба в descriptor).
+            float incomingEnergy = Mathf.Max(0f, energy);
+            float netEnergy = incomingEnergy - requiredEnergy;
 
-            instance.energy += incomingEnergy;
-
-            // Дерево тратит энергию на выживание
-            instance.energy -= requiredEnergy;
-
-            if (instance.energy < 0f) {
-                // Нехватка энергии конвертируется в стресс
-                instance.stress += energyStressWeight * Mathf.Abs(instance.energy);
-                // Энергия не может быть отрицательной (иначе она никогда не восстановится)
+            if (netEnergy < 0f) {
+                // Нехватка энергии конвертируется в стресс.
+                instance.stress += energyStressWeight * Mathf.Abs(netEnergy);
+                // Энергия за год израсходована полностью.
                 instance.energy = 0f;
             } else {
+                // Сохраняем только чистый годовой остаток, не накапливая энергию по многим годам.
+                instance.energy = netEnergy;
                 // При профиците энергии стресс постепенно спадает
                 if (instance.stress > 0f) {
-                    instance.stress = Mathf.Max(0f, instance.stress - incomingEnergy * 0.2f);
-                }
-                // Ограничиваем запас максимальной энергии (кап), чтобы он не рос бесконечно
-                float maxEnergyCap = requiredEnergy * 10f;
-                if (instance.energy > maxEnergyCap) {
-                    instance.energy = maxEnergyCap;
+                    instance.stress = Mathf.Max(0f, instance.stress - netEnergy * 0.2f);
                 }
             }
 
@@ -175,10 +168,17 @@ namespace ProceduralVegetation {
 
             var seeds = new FoliageInstance[count];
 
+            // Родитель передает накопленную энергию потомству, равномерно деля запас между всеми семенами.
+            float totalTransferredEnergy = count > 0 ? Mathf.Max(0f, instance.energy) : 0f;
+            float energyPerSeed = count > 0 ? totalTransferredEnergy / count : 0f;
+            instance.energy -= totalTransferredEnergy;
+
             for (int i = 0; i < seeds.Length; i++) {
                 seeds[i] = CreateSeed(
                     Simulation.Random.NextGaussian(seedSpreadRadius, instance.position)
                 );
+                // У потомства энергия только от родителя: без дополнительной генерации энергии "из воздуха".
+                seeds[i].energy = energyPerSeed;
             }
 
             return seeds;
@@ -237,9 +237,9 @@ namespace ProceduralVegetation {
             requiredWater = 1.2f;
 
             // Как только дереву перестает хватать света или воды, оно почти мгновенно умирает:
-            acceptableSeedStress = 0.2f;
-            acceptableSaplingStress = 0.4f;
-            acceptableMatureStress = 0.5f;
+            acceptableSeedStress = 0.05f;
+            acceptableSaplingStress = 0.2f;
+            acceptableMatureStress = 0.25f;
 
             seedEnergy = 0.5f;
             saplingStartAge = 5f;
