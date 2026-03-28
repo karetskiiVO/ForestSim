@@ -51,7 +51,7 @@ class RuntimeSimulation : MonoBehaviour {
             .SetLandscape(bakedLandscape)
             .SetFruitfulness(new LanscapeFruitfillness() {
                 fruitfulnessMap = fruitfulnessMap,
-                fruitfulnessScale = 1f,
+                fruitfulnessScale = 0.05f,
             })
             .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f)
             .AddEventGenerator(new TreeSpeciesCountDescriptor.TreeSpeciesCounterEventGenerator())

@@ -64,7 +64,14 @@ namespace ProceduralVegetation {
         protected virtual float BaseMatureMortality => 0.005f;
 
         // Growth / fecundity / dispersal tuning
-        protected virtual float GrowthCoefficient => 1.2f; // converts available energy -> strength (increased to speed recovery)
+        // Lowered defaults to avoid explosive yearly increases.
+        protected virtual float GrowthCoefficient => 0.7f; // converts available energy -> strength
+        // Size-dependent slowdown: 1/(1 + beta*strength)
+        protected virtual float SizeModifierBeta => 0.4f;
+        // Cap annual strength increase to avoid large jumps
+        protected virtual float MaxAnnualStrengthIncrease => 0.5f;
+        // Energy cost factor per unit strength increase
+        protected virtual float EnergyCostFactor => 0.6f;
         protected virtual float MaxFecundityPerStrength => 0.5f; // seeds per unit strength
         protected virtual float DispersalScale => 50f; // characteristic dispersal distance (m)
 
@@ -73,13 +80,17 @@ namespace ProceduralVegetation {
             instance.age += 1f;
 
             // Convert stored energy into strength (biomass proxy).
-            // Use a saturating log-like conversion to avoid runaway growth.
+            // Use a saturating log-like conversion and apply a size modifier to slow growth for large trees.
             float energy = Mathf.Max(0f, instance.energy);
-            float deltaStrength = GrowthCoefficient * Mathf.Log(1f + 0.5f * energy);
+            float rawDelta = GrowthCoefficient * Mathf.Log(1f + 0.5f * energy);
+            float sizeMod = 1f / (1f + SizeModifierBeta * instance.strength);
+            float deltaStrength = rawDelta * sizeMod;
+            // cap annual increase
+            deltaStrength = Mathf.Min(deltaStrength, MaxAnnualStrengthIncrease);
             instance.strength = Mathf.Max(0f, instance.strength + deltaStrength);
 
-            // Consume part of energy for growth/maintenance (reduced fraction to allow energy retention).
-            instance.energy = Mathf.Max(0f, instance.energy - deltaStrength * 0.25f);
+            // Consume part of energy for growth/maintenance.
+            instance.energy = Mathf.Max(0f, instance.energy - deltaStrength * EnergyCostFactor);
 
             // Gentle natural decay of stress over time
             instance.stress = Mathf.Max(0f, instance.stress - 0.05f);
@@ -135,11 +146,12 @@ namespace ProceduralVegetation {
 
         public override void AddResources(ref FoliageInstance instance, float energy, float water, float light) {
             // Simple bookkeeping: baseline yearly energy gain plus incoming resource contribution.
+            // Baseline yearly energy supply (reduced slightly to slow runaway growth)
             float baseline = instance.type switch {
-                FoliageInstance.FoliageType.Seed => 0.08f,
-                FoliageInstance.FoliageType.Sapling => 0.12f,
-                FoliageInstance.FoliageType.Mature => 0.04f,
-                _ => 0.02f,
+                FoliageInstance.FoliageType.Seed => 0.04f,
+                FoliageInstance.FoliageType.Sapling => 0.08f,
+                FoliageInstance.FoliageType.Mature => 0.03f,
+                _ => 0.015f,
             };
 
             instance.energy += baseline + energy;
@@ -172,8 +184,8 @@ namespace ProceduralVegetation {
                 position = position,
                 age = 0f,
                 stress = 0f,
-                // Increased initial energy to improve early establishment probability
-                energy = 0.3f + (float)(Simulation.Random.NextDouble() * 0.1f),
+                // Initial energy for seeds (moderated)
+                energy = 0.12f + (float)(Simulation.Random.NextDouble() * 0.03f),
                 strength = 0f,
                 type = FoliageInstance.FoliageType.Seed,
             };
@@ -185,7 +197,7 @@ namespace ProceduralVegetation {
         protected override float BaseSeedMortality => 0.25f;
         protected override float BaseSaplingMortality => 0.05f;
         protected override float BaseMatureMortality => 0.005f;
-        protected override float GrowthCoefficient => 1.0f;
+        protected override float GrowthCoefficient => 1.3f;
         protected override float MaxFecundityPerStrength => 0.6f;
         protected override float DispersalScale => 50f;
     }
@@ -193,10 +205,10 @@ namespace ProceduralVegetation {
     public class PineDescriptor : RuntimeSpeciesDescriptor {
         protected override float SeedToSaplingAge => 0.5f;
         protected override float SaplingToMatureAge => 4f;
-        protected override float BaseSeedMortality => 0.35f;
-        protected override float BaseSaplingMortality => 0.06f;
-        protected override float BaseMatureMortality => 0.008f;
-        protected override float GrowthCoefficient => 0.7f;
+        protected override float BaseSeedMortality => 0.25f;
+        protected override float BaseSaplingMortality => 0.04f;
+        protected override float BaseMatureMortality => 0.004f;
+        protected override float GrowthCoefficient => 1.3f;
         protected override float MaxFecundityPerStrength => 1.2f;
         protected override float DispersalScale => 50f;
     }
@@ -215,10 +227,10 @@ namespace ProceduralVegetation {
     public class SpruceDescriptor : RuntimeSpeciesDescriptor {
         protected override float SeedToSaplingAge => 1f;
         protected override float SaplingToMatureAge => 7f;
-        protected override float BaseSeedMortality => 0.325f;
-        protected override float BaseSaplingMortality => 0.05f;
-        protected override float BaseMatureMortality => 0.006f;
-        protected override float GrowthCoefficient => 0.6f;
+        protected override float BaseSeedMortality => 0.25f;
+        protected override float BaseSaplingMortality => 0.04f;
+        protected override float BaseMatureMortality => 0.004f;
+        protected override float GrowthCoefficient => 1.3f;
         protected override float MaxFecundityPerStrength => 0.5f;
         protected override float DispersalScale => 50f;
     }
@@ -226,10 +238,10 @@ namespace ProceduralVegetation {
     public class LindenDescriptor : RuntimeSpeciesDescriptor {
         protected override float SeedToSaplingAge => 1f;
         protected override float SaplingToMatureAge => 6f;
-        protected override float BaseSeedMortality => 0.275f;
-        protected override float BaseSaplingMortality => 0.05f;
-        protected override float BaseMatureMortality => 0.004f;
-        protected override float GrowthCoefficient => 0.9f;
+        protected override float BaseSeedMortality => 0.25f;
+        protected override float BaseSaplingMortality => 0.04f;
+        protected override float BaseMatureMortality => 0.003f;
+        protected override float GrowthCoefficient => 1.3f;
         protected override float MaxFecundityPerStrength => 0.45f;
         protected override float DispersalScale => 50f;
     }
@@ -237,9 +249,9 @@ namespace ProceduralVegetation {
     public class BushDescriptor : RuntimeSpeciesDescriptor {
         protected override float SeedToSaplingAge => 0.2f;
         protected override float SaplingToMatureAge => 2f;
-        protected override float BaseSeedMortality => 0.25f;
-        protected override float BaseSaplingMortality => 0.10f;
-        protected override float BaseMatureMortality => 0.02f;
+        protected override float BaseSeedMortality => 0.2f;
+        protected override float BaseSaplingMortality => 0.05f;
+        protected override float BaseMatureMortality => 0.01f;
         protected override float GrowthCoefficient => 1.5f;
         protected override float MaxFecundityPerStrength => 1.5f;
         protected override float DispersalScale => 50f;
