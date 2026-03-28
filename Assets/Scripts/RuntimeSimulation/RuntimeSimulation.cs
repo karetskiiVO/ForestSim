@@ -51,7 +51,7 @@ class RuntimeSimulation : MonoBehaviour {
             .SetLandscape(bakedLandscape)
             .SetFruitfulness(new LanscapeFruitfillness() {
                 fruitfulnessMap = fruitfulnessMap,
-                fruitfulnessScale = 0.00005f,
+                fruitfulnessScale = 1f,
             })
             .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f)
             .AddEventGenerator(new TreeSpeciesCountDescriptor.TreeSpeciesCounterEventGenerator())
@@ -128,7 +128,7 @@ class RuntimeSimulation : MonoBehaviour {
 
         float accumulatedTime = 0f;
         while (true) {
-            simulation.Run(1);
+            simulation.Run(0.1f);
             accumulatedTime += 1f;
 
             Debug.Log(

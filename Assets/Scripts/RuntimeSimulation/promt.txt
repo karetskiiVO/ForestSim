@@ -1,0 +1,78 @@
+НЕОБХОДИМО: по минимуму модифицировать текущую архитектуру
+
+Цель
+
+Добавить в существующий Unity‑репозиторий модуль пространственно‑явной (individual‑based) симуляции роста деревьев с конкуренцией за свет, устроенный так, чтобы популяция приходила к статистическому равновесию (саморегуляция через плотностную зависимость установления/смертности).
+Реализация — на C# в Unity, интеграция с уже существующими абстракциями в репозитории. Если абстракции отсутствуют или несовместимы, предложи и создай адаптеры.
+Шаг 0. Осмотр репозитория (обязательное)
+
+Проанализируй дерево репозитория (Assets/, Packages/, Scripts/) и найди существующие классы/интерфейсы, относящиеся к вегетации/объектам мира: например Tree, VegetationManager, Spawner, WorldGrid, Biome, IAgent и т.п.
+В ответе присылай:
+список обнаруженных релевантных файлов/классов с коротким описанием (одно‑два предложения);
+если ничего релевантного не найдено — сообщи и предложи минимальные интерфейсы, которые я ожидаю.
+Если найдены несовместимые названия/контракты, предложи адаптеры (напр., класс ForestSimAdapter, реализующий ISpawner/IGameSystem).
+Требование к интеграции
+
+Не ломай сущес��вующую логику: используй обнаруженные классы для спавна/удаления объектов. Если необходимо — создай новый namespace Assets/Scripts/ForestSim и помести туда новые компоненты, оставив старые нетронутыми.
+Все параметры — настраиваемые ScriptableObject(ы) и/или SerializedField в инспекторе (чтобы можно было менять без перекомпиляции).
+Реализация должна работать в редакторе и в билде.
+Архитектура модуля (что надо реализовать) /* Обязательные компоненты — файлы и классы, которые нужно добавить/адаптировать. */
+
+Assets/Scripts/RuntimeSimulation/BaseTreeDescriptor (так же все наследники)
+
+POCO/MonoBehaviour для представления агента‑дерева (id, species, Vector2 pos, age, DBH, height, crownRadius, leafArea, alive).
+Методы: ApplyGrowth(deltaDBH), MarkDead(), ToCSVRow().
+Assets/Scripts/ForestSim/ForestConfig.cs (ScriptableObject)
+
+Все параметры: domainSize, cellSize, timestepYears, I0, kBeerLambert, S_half, g_max (по видам), fecundity params, dispersal_d0, alpha_densityDependence, maxSeedlingsPerCell, initialPopulation, randomSeed и т.д.
+Экспорт example config (config_default.asset) с разумными значениями.
+Assets/Scripts/ForestSim/LightModel.cs
+
+Grid LAI: деление области на grid (cellSize) → для каждой ячейки LAI = sum(leafArea overlapping)/cellArea.
+Beer–Lambert: I[cell] = I0 * exp(-k * LAI[cell]).
+API: ComputeLAIAndI(List<TreeAgent> trees) → возвращает I grid и предоставляет метод GetAverageLightForTree(TreeAgent).
+Assets/Scripts/ForestSim/GrowthModel.cs
+
+Логика расчёта ΔDBH для дерева: ΔDBH = g_max(species) * (S/(S + S_half)) * sizeModifier(DBH) * exp(-gamma * CI).
+sizeModifier может быть, например, 1 / (1 + beta * DBH) — предложи и объясни.
+API: ComputeGrowth(TreeAgent, light, neighbors) → deltaDBH.
+Assets/Scripts/ForestSim/CompetitionIndex.cs
+
+Реализация локального индекса конкуренции (Hegyi или расстоянно‑взвешенная сумма).
+API: ComputeCI(TreeAgent, neighbors).
+Assets/Scripts/ForestSim/RecruitmentManager.cs
+
+Seed production: seeds = fecundity(DBH).
+Dispersal kernel: экспоненциальный (exp(-r/d0)) с нормировкой; при желании — альтернатива Cauchy.
+Accumulate seeds per cell и probabilistic establishment: p_establish = p0 * (S/(S + S_half)) * exp(-alpha * N_juveniles_cell).
+Ограничение на maxNewSeedlingsPerCell (=K_cell в настройках).
+API: DisperseSeedsAndEstablish(List<TreeAgent>, Igrid) → создает новые TreeAgent в сцене (pooling).
+Assets/Scripts/ForestSim/ForestSimulator.cs (MonoBehaviour)
+
+Основной цикл: каждый timestep (год):
+Build spatial index (grid/quad-tree) for efficient neighbor queries.
+Compute leaf areas (allometry) и LAI/I grid (LightModel).
+Для каждого дерева: получить S_i = average I under crown → CI → ΔDBH via GrowthModel → применить рост.
+Для каждого дерева: вычислить вероятность смерти P_dead = base + f_shade(S)+ f_age + f_competition(CI). Выполнить стохастическую проверку и удалить помеченные деревья (или пометить dead).
+Reproduction: DisperseSeedsAndEstablish.
+age++ для всех деревьев.
+Записать логи (CSV), обновить визуализации.
+Запуск/пауза/step‑one‑year в инспекторе и UI.
+Дополнительные возможности (обязательные визуализации и утилиты)
+
+Editor/Play mode визуализировать LAI heatmap (Gizmos или overlay texture on terrain).
+Gizmos для крон деревьев (wire circle) и для новых seedlings (цвет).
+Debug UI panel: текущее N(t), recruitment rate, mortality rate, mean DBH, mean LAI.
+CSV exporter: логи по годам (trees list) и summary metrics per year.
+Требования к качеству и проверке
+
+Deterministic при заданном randomSeed (для воспроизводимости).
+Unit‑tests: использовать Unity Test Framework. Тесты для:
+allometry functions;
+LAI→I grid computation (маленький сетап с 2–3 деревьями — проверяем значения);
+growth computation (проверь ΔDBH п��и заданном S);
+dispersal kernel (проверить нормировку и дисперсию).
+Integration test: короткая прогонка симуляции (domain 100×100 m, ~200 деревьев, 50 шагов) заканчивается успешно и создаёт CSV и график.
+Performance goal: Prototype должен обрабатывать ~5000 деревьев за годовой шаг менее чем за N секунд (укажи разумный целевой порог для текущего железа — если не уверен, задокументируй профилирование и узкие места). Минимум: оптимизированный grid neighbor lookup и object pooling для создания/уничтожения.
+
+НЕОБХОДИМО: по минимуму модифицировать текущую архитектуру

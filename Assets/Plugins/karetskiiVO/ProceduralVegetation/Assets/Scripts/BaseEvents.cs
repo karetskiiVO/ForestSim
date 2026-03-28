@@ -110,7 +110,7 @@ namespace ProceduralVegetation {
     }
 
     public class ResourceDistributionEvent : Event {
-        public float waterFromIntegral = 10f; public float cellRadiusMultiplier = 15f;
+        public float waterFromIntegral = 10f; public float cellRadiusMultiplier = 10f;
         private const uint FixedPointScale = 65536u;
         private const string IntegralShaderResourcePath = "ProceduralVegetation/FruitfulnessIntegral";
         private const string CellIndexBakeShaderResourcePath = "ProceduralVegetation/CellIndexBake";
@@ -162,13 +162,20 @@ namespace ProceduralVegetation {
                 polygons[0] = BuildRectanglePolygon(clipRect);
                 var fi = ctx.points[activeIndices[0]].foliageInstance;
                 centers[0] = fi.position;
-                radii[0] = Mathf.Max(0.1f, Mathf.Sqrt(fi.strength) * cellRadiusMultiplier);
+                // Эффективный радиус — растёт медленно от силы (вогнутая функция),
+                // чтобы уменьшить положительную обратную связь между силой и площадью.
+                radii[0] = Mathf.Max(0.1f, Mathf.Pow(Mathf.Max(0f, fi.strength), 0.25f) * cellRadiusMultiplier);
             } else {
                 for (int j = 0; j < activeIndices.Count; j++) {
                     var fi = ctx.points[activeIndices[j]].foliageInstance;
-                    inputPoints[j] = (fi.position, Mathf.Max(0f, fi.strength));
+                    // Сжимаем влияние силы на вес в PowerDiagram (логарифмическое и масштаб),
+                    // чтобы сильные деревья не захватывали слишком большие области.
+                    const float weightScale = 0.25f;
+                    float effectiveWeight = Mathf.Clamp(weightScale * Mathf.Log(1f + Mathf.Max(0f, fi.strength)), 0f, 1.0f);
+                    inputPoints[j] = (fi.position, effectiveWeight);
                     centers[j] = fi.position;
-                    radii[j] = Mathf.Max(0.1f, Mathf.Sqrt(Mathf.Max(0f, fi.strength)) * cellRadiusMultiplier);
+                    // Радиус ячейки растёт ещё медленнее, чтобы предотвратить большие ячейки.
+                    radii[j] = Mathf.Max(0.1f, Mathf.Pow(Mathf.Max(0f, fi.strength), 0.25f) * cellRadiusMultiplier);
                 }
 
                 PowerDiagram diagram;
@@ -196,17 +203,20 @@ namespace ProceduralVegetation {
                 : fruitIntegrals;
             if (waterSampler.hasMap && waterIntegrals == null) return;
 
-            float[] lightIntegrals = lightSampler.hasMap
-                ? IntegratePolygonsGpu(polygons, lightSampler, centers, radii)
-                : fruitIntegrals;
-            if (lightSampler.hasMap && lightIntegrals == null) return;
+            // Lighting temporarily disabled - using light causes excessive mortality in current setup.
+            // float[] lightIntegrals = lightSampler.hasMap
+            //     ? IntegratePolygonsGpu(polygons, lightSampler, centers, radii)
+            //     : fruitIntegrals;
+            // if (lightSampler.hasMap && lightIntegrals == null) return;
+            float[] lightIntegrals = null;
 
             for (int j = 0; j < activeIndices.Count; j++) {
                 float energyIntegral = fruitIntegrals[j];
                 float waterIntegral = waterIntegrals[j];
-                float lightIntegral = lightIntegrals[j];
+                // light disabled
+                float lightIntegral = 0f;
 
-                if (energyIntegral <= 0f && waterIntegral <= 0f && lightIntegral <= 0f) continue;
+                if (energyIntegral <= 0f && waterIntegral <= 0f) continue;
 
                 int pointIdx = activeIndices[j];
                 var point = ctx.points[pointIdx];
@@ -214,7 +224,7 @@ namespace ProceduralVegetation {
                     ref point.foliageInstance,
                     energyIntegral * fruitSampler.scale,
                     waterIntegral * (waterSampler.hasMap ? waterSampler.scale : 1f) * waterFromIntegral,
-                    lightIntegral * (lightSampler.hasMap ? lightSampler.scale : 1f)
+                    0f // lighting disabled
                 );
                 ctx.points[pointIdx] = point;
             }

@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 
 using ProceduralVegetation.Utilities;
@@ -52,267 +53,195 @@ namespace ProceduralVegetation {
     }
 
     public class RuntimeSpeciesDescriptor : TreeSpeciesCountDescriptor {
-        protected float energyStressWeight = 1f;
-        protected float requiredEnergy = 1f;
-        protected float waterStressWeight = 1f;
-        protected float requiredWater = 1f;
-        // protected float lightStressWeight = 1f;
-        // protected float requiredLight = 1f;
+        // Basic, configurable defaults for a runtime species.
+        // Subclasses can override behavior by overriding methods or changing these constants.
+        protected virtual float SeedToSaplingAge => 1f;
+        protected virtual float SaplingToMatureAge => 5f;
 
-        protected float acceptableSeedStress = 0.5f;
-        protected float acceptableSaplingStress = 0.7f;
-        protected float acceptableMatureStress = 0.9f;
+        // Mortality (annual) base rates by stage (lowered to reduce excessive mortality)
+        protected virtual float BaseSeedMortality => 0.3f;
+        protected virtual float BaseSaplingMortality => 0.06f;
+        protected virtual float BaseMatureMortality => 0.005f;
 
-        protected float seedEnergy = 1f;
+        // Growth / fecundity / dispersal tuning
+        protected virtual float GrowthCoefficient => 1.2f; // converts available energy -> strength (increased to speed recovery)
+        protected virtual float MaxFecundityPerStrength => 0.5f; // seeds per unit strength
+        protected virtual float DispersalScale => 50f; // characteristic dispersal distance (m)
 
-        protected float saplingStartAge = 1f;
-        protected float matureStartAge = 5f;
+        public override void Grow(ref FoliageInstance instance) {
+            // Advance age by one year (assumes Grow is called once per year).
+            instance.age += 1f;
 
-        protected float seedSpreadRadius = 100f;
-        protected int seedSpreadCount = 5;
+            // Convert stored energy into strength (biomass proxy).
+            // Use a saturating log-like conversion to avoid runaway growth.
+            float energy = Mathf.Max(0f, instance.energy);
+            float deltaStrength = GrowthCoefficient * Mathf.Log(1f + 0.5f * energy);
+            instance.strength = Mathf.Max(0f, instance.strength + deltaStrength);
 
-        protected float seedStrength = 0.2f;
-        protected float maxStrength = 2f;
-        protected float energyConversation = 0.5f;
+            // Consume part of energy for growth/maintenance (reduced fraction to allow energy retention).
+            instance.energy = Mathf.Max(0f, instance.energy - deltaStrength * 0.25f);
 
-        // Примерный лимит популяции вида. При его превышении возникает случайный стресс от перенаселения
-        protected int populationLimit = 50000;
-        protected float overpopulationStressWeight = 0.05f;
+            // Gentle natural decay of stress over time
+            instance.stress = Mathf.Max(0f, instance.stress - 0.05f);
 
-        public override void AddResources(ref FoliageInstance instance, float energy, float water, float light) {
-            // За год дерево получает ровно интеграл по карте плодородия (без дополнительного масштаба в descriptor).
-            float incomingEnergy = Mathf.Max(0f, energy);
-            float netEnergy = incomingEnergy - requiredEnergy;
-
-            if (netEnergy < 0f) {
-                // Нехватка энергии конвертируется в стресс.
-                instance.stress += energyStressWeight * Mathf.Abs(netEnergy);
-                // Энергия за год израсходована полностью.
-                instance.energy = 0f;
-            } else {
-                // Сохраняем только чистый годовой остаток, не накапливая энергию по многим годам.
-                instance.energy = netEnergy;
-                // При профиците энергии стресс постепенно спадает
-                if (instance.stress > 0f) {
-                    instance.stress = Mathf.Max(0f, instance.stress - netEnergy * 0.2f);
+            // Stage transitions
+            if (instance.type == FoliageInstance.FoliageType.Seed) {
+                // Lowered threshold to make seed->sapling transition easier when seeds have modest energy.
+                if (instance.age >= SeedToSaplingAge && instance.strength > 0.005f) {
+                    instance.type = FoliageInstance.FoliageType.Sapling;
                 }
-            }
-
-            instance.stress += waterStressWeight * Mathf.Max(0f, requiredWater - water);
-            // instance.stress += lightStressWeight * Mathf.Max(0f, requiredLight - light);
-
-            // Механика угнетения при перенаселении вида (мягкое ограничение численности)
-            if (Count > populationLimit) {
-                float excessRatio = (float)Count / populationLimit - 1f;
-                // Используем хеширование координат для получения псевдослучайного числа [0..1],
-                // так как UnityEngine.Random не потокобезопасен (на случай использования Jobs)
-                float pseudoRandom = Mathf.Abs(Mathf.Sin(instance.position.x * 12.989f + instance.position.y * 78.233f) * 43758.545f) % 1f;
-                instance.stress += overpopulationStressWeight * excessRatio * pseudoRandom;
+            } else if (instance.type == FoliageInstance.FoliageType.Sapling) {
+                if (instance.age >= SaplingToMatureAge && instance.strength >= 0.5f) {
+                    instance.type = FoliageInstance.FoliageType.Mature;
+                }
+            } else if (instance.type == FoliageInstance.FoliageType.Mature) {
+                // cap strength to keep numbers bounded
+                instance.strength = Mathf.Min(instance.strength, 1000f);
             }
         }
 
         public override bool Alive(in FoliageInstance instance) {
-            // Убрали проверку instance.energy > 0, чтобы дерево не гибло в один клик от 0 энергии.
-            // Оно получает стресс от нулей и умирает когда стресс выходит за лимит.
-            return instance.type switch {
-                FoliageInstance.FoliageType.Seed => instance.stress < acceptableSeedStress,
-                FoliageInstance.FoliageType.Sapling => instance.stress < acceptableSaplingStress,
-                FoliageInstance.FoliageType.Mature => instance.stress < acceptableMatureStress,
-                _ => false,
+            // Compute base survival probability by life stage
+            float baseSurvival = instance.type switch {
+                FoliageInstance.FoliageType.Seed => 1f - BaseSeedMortality,
+                FoliageInstance.FoliageType.Sapling => 1f - BaseSaplingMortality,
+                FoliageInstance.FoliageType.Mature => 1f - BaseMatureMortality,
+                FoliageInstance.FoliageType.Dying => 0f,
+                _ => 1f - BaseMatureMortality,
             };
-        }
 
-        public override FoliageInstance CreateSeed(Vector2 position) {
-            return new() {
-                type = FoliageInstance.FoliageType.Seed,
-                position = position,
-                energy = seedEnergy,
-                strength = seedStrength,
-                stress = 0f,
+            // Resource modifiers: more energy/strength increases survival.
+            float energyFactor = Mathf.Clamp01(instance.energy / (1f + instance.age * 0.1f));
+            float strengthFactor = Mathf.Clamp01(instance.strength / (1f + instance.age * 0.2f));
+
+            float resourceSurvival = Mathf.Clamp01(0.5f * energyFactor + 0.5f * strengthFactor);
+
+            // Combine base and resource-driven survival (weighted towards base survival)
+            float finalSurvival = Mathf.Clamp01(0.6f * baseSurvival + 0.4f * resourceSurvival);
+
+            // Ensure a minimum floor for survival by stage to avoid near-certain wipeout
+            float minSurvival = instance.type switch {
+                FoliageInstance.FoliageType.Seed => 0.55f,
+                FoliageInstance.FoliageType.Sapling => 0.8f,
+                FoliageInstance.FoliageType.Mature => 0.98f,
+                _ => 0.3f,
             };
+
+            finalSurvival = Mathf.Clamp01(Mathf.Max(finalSurvival, minSurvival));
+
+            // Stochastic outcome for a single-year survival
+            return Simulation.Random.Chance(finalSurvival);
         }
 
-        private void UpdateType(ref FoliageInstance instance) {
-            if (instance.age < saplingStartAge) instance.type = FoliageInstance.FoliageType.Seed;
-            else if (instance.age < matureStartAge) instance.type = FoliageInstance.FoliageType.Sapling;
-            else instance.type = FoliageInstance.FoliageType.Mature;
-        }
+        public override void AddResources(ref FoliageInstance instance, float energy, float water, float light) {
+            // Simple bookkeeping: baseline yearly energy gain plus incoming resource contribution.
+            float baseline = instance.type switch {
+                FoliageInstance.FoliageType.Seed => 0.08f,
+                FoliageInstance.FoliageType.Sapling => 0.12f,
+                FoliageInstance.FoliageType.Mature => 0.04f,
+                _ => 0.02f,
+            };
 
-        public override void Grow(ref FoliageInstance instance) {
-            instance.age += 1f;
-            UpdateType(ref instance);
-
-            instance.strength += energyConversation * instance.energy;
-            // Жёсткое ограничение максимальной силы.
-            // Иначе дерево бесконечно увеличивает свою ячейку Вороного, забирая все ресурсы карты!
-            if (instance.strength > maxStrength) {
-                instance.strength = maxStrength;
-            }
+            instance.energy += baseline + energy;
+            instance.energy += light * 0.01f;
+            // water currently ignored in this simple descriptor but could modulate conversion.
         }
 
         public override FoliageInstance[] Seed(ref FoliageInstance instance) {
-            int count = instance.type == FoliageInstance.FoliageType.Mature ? seedSpreadCount : 0;
+            if (instance.type != FoliageInstance.FoliageType.Mature) return Array.Empty<FoliageInstance>();
 
-            // Уменьшение количества семян пропорционально стрессу
-            if (count > 0 && acceptableMatureStress > 0f) {
-                float stressRatio = instance.stress / acceptableMatureStress;
-                if (stressRatio > 0.8f) {
-                    count = 0; // Дерево слишком истощено для плодоношения
-                } else if (stressRatio > 0f) {
-                    // Чем больше стресс, тем меньше семян
-                    float yield = count * (1f - stressRatio);
-                    // Вероятностно определяем конечное число
-                    count = Mathf.FloorToInt(yield) + (Simulation.Random.Chance(yield % 1f) ? 1 : 0);
-                }
-            }
+            // Number of seeds scales with strength (rounded down). Keep integer count modest.
+            int expected = Mathf.FloorToInt(Mathf.Clamp(instance.strength * MaxFecundityPerStrength, 0f, 50f));
+            if (expected <= 0) return Array.Empty<FoliageInstance>();
 
-            var seeds = new FoliageInstance[count];
-
-            // Родитель передает накопленную энергию потомству, равномерно деля запас между всеми семенами.
-            float totalTransferredEnergy = count > 0 ? Mathf.Max(0f, instance.energy) : 0f;
-            float energyPerSeed = count > 0 ? totalTransferredEnergy / count : 0f;
-            instance.energy -= totalTransferredEnergy;
-
-            for (int i = 0; i < seeds.Length; i++) {
-                seeds[i] = CreateSeed(
-                    Simulation.Random.NextGaussian(seedSpreadRadius, instance.position)
-                );
-                // У потомства энергия только от родителя: без дополнительной генерации энергии "из воздуха".
-                seeds[i].energy = energyPerSeed;
+            var seeds = new FoliageInstance[expected];
+            for (int i = 0; i < expected; i++) {
+                // Exponential dispersal: r = -scale * ln(u)
+                double u = Simulation.Random.NextDouble();
+                float r = (float)(-DispersalScale * Math.Log(Math.Max(1e-6, u)));
+                double theta = Simulation.Random.NextDouble() * Math.PI * 2.0;
+                var pos = instance.position + new Vector2(Mathf.Cos((float)theta), Mathf.Sin((float)theta)) * r;
+                seeds[i] = CreateSeed(pos);
             }
 
             return seeds;
         }
+
+        public override FoliageInstance CreateSeed(Vector2 position) {
+            return new FoliageInstance() {
+                position = position,
+                age = 0f,
+                stress = 0f,
+                // Increased initial energy to improve early establishment probability
+                energy = 0.3f + (float)(Simulation.Random.NextDouble() * 0.1f),
+                strength = 0f,
+                type = FoliageInstance.FoliageType.Seed,
+            };
+        }
     }
 
     public class OakDescriptor : RuntimeSpeciesDescriptor {
-        public OakDescriptor() {
-            // Климаксный вид: теневынослив, нетребователен к свету, медленно растет
-            energyStressWeight = 0.5f;
-            requiredEnergy = 0.6f; // НИЗКАЯ потребность (выживает в тени под пологом)
-            waterStressWeight = 0.5f;
-            requiredWater = 0.8f;
-
-            acceptableSeedStress = 2.0f; // Почти невозможно убить росток стрессом
-            acceptableSaplingStress = 2.0f;
-            acceptableMatureStress = 2.5f;
-
-            seedEnergy = 4.0f; // Большой стартовый запас
-            saplingStartAge = 8f;
-            matureStartAge = 25f; // Снижено, чтобы успевали дать потомство
-            seedSpreadRadius = 150f;
-            seedSpreadCount = 1;
-            populationLimit = 150;
-            maxStrength = 8f; // Дуб выдавливает конкурентов
-        }
+        protected override float SaplingToMatureAge => 6f;
+        protected override float BaseSeedMortality => 0.25f;
+        protected override float BaseSaplingMortality => 0.05f;
+        protected override float BaseMatureMortality => 0.005f;
+        protected override float GrowthCoefficient => 1.0f;
+        protected override float MaxFecundityPerStrength => 0.6f;
+        protected override float DispersalScale => 50f;
     }
 
     public class PineDescriptor : RuntimeSpeciesDescriptor {
-        public PineDescriptor() {
-            // Переходный/Пионерный вид: светолюбив, но засухоустойчив
-            energyStressWeight = 1.2f;
-            requiredEnergy = 1.2f; // Нуждается в свете
-            waterStressWeight = 0.4f;
-            requiredWater = 0.5f;
-
-            acceptableSeedStress = 0.8f;
-            acceptableSaplingStress = 1.0f;
-            acceptableMatureStress = 1.2f;
-
-            seedEnergy = 2.0f;
-            saplingStartAge = 6f;
-            matureStartAge = 15f;
-            seedSpreadRadius = 250f;
-            seedSpreadCount = 2;
-            populationLimit = 1500;
-        }
+        protected override float SeedToSaplingAge => 0.5f;
+        protected override float SaplingToMatureAge => 4f;
+        protected override float BaseSeedMortality => 0.35f;
+        protected override float BaseSaplingMortality => 0.06f;
+        protected override float BaseMatureMortality => 0.008f;
+        protected override float GrowthCoefficient => 0.7f;
+        protected override float MaxFecundityPerStrength => 1.2f;
+        protected override float DispersalScale => 50f;
     }
 
     public class BirchDescriptor : RuntimeSpeciesDescriptor {
-        public BirchDescriptor() {
-            // Пионер: требует очень много света, быстро вытесняется другими деревьями
-            energyStressWeight = 3.0f; // Умножает стресс в тени х3
-            requiredEnergy = 1.5f; // Очень высокая потребность в энергии
-            waterStressWeight = 1.5f;
-            requiredWater = 1.2f;
-
-            // Как только дереву перестает хватать света или воды, оно почти мгновенно умирает:
-            acceptableSeedStress = 0.05f;
-            acceptableSaplingStress = 0.2f;
-            acceptableMatureStress = 0.25f;
-
-            seedEnergy = 0.5f;
-            saplingStartAge = 5f;
-            matureStartAge = 12f;
-            seedSpreadRadius = 250f; // Урезал радиус, чтобы локализовать очаги
-            seedSpreadCount = 1; // Убрал геометрическую прогрессию
-
-            populationLimit = 2000;
-            overpopulationStressWeight = 8.0f; // Смертельный стресс при перенаселении
-        }
+        protected override float SeedToSaplingAge => 0.5f;
+        protected override float SaplingToMatureAge => 4f;
+        protected override float BaseSeedMortality => 0.3f;
+        protected override float BaseSaplingMortality => 0.055f;
+        protected override float BaseMatureMortality => 0.006f;
+        protected override float GrowthCoefficient => 1.2f;
+        protected override float MaxFecundityPerStrength => 0.8f;
+        protected override float DispersalScale => 50f;
     }
 
     public class SpruceDescriptor : RuntimeSpeciesDescriptor {
-        public SpruceDescriptor() {
-            // Климаксный вид: крайне теневыносливая (минимальная потребность в энергии)
-            energyStressWeight = 0.6f;
-            requiredEnergy = 0.5f;
-            waterStressWeight = 0.8f;
-            requiredWater = 1.0f;
-
-            acceptableSeedStress = 1.5f;
-            acceptableSaplingStress = 1.8f;
-            acceptableMatureStress = 2.0f;
-
-            seedEnergy = 3.0f;
-            saplingStartAge = 8f;
-            matureStartAge = 20f;
-            seedSpreadRadius = 150f;
-            seedSpreadCount = 2;
-            populationLimit = 2000;
-            maxStrength = 6f; // Ель легко завоевывает пространство
-        }
+        protected override float SeedToSaplingAge => 1f;
+        protected override float SaplingToMatureAge => 7f;
+        protected override float BaseSeedMortality => 0.325f;
+        protected override float BaseSaplingMortality => 0.05f;
+        protected override float BaseMatureMortality => 0.006f;
+        protected override float GrowthCoefficient => 0.6f;
+        protected override float MaxFecundityPerStrength => 0.5f;
+        protected override float DispersalScale => 50f;
     }
 
     public class LindenDescriptor : RuntimeSpeciesDescriptor {
-        public LindenDescriptor() {
-            // Умеренная теневыносливость
-            energyStressWeight = 0.8f;
-            requiredEnergy = 0.8f;
-            waterStressWeight = 0.8f;
-            requiredWater = 1.0f;
-
-            acceptableSeedStress = 1.0f;
-            acceptableSaplingStress = 1.5f;
-            acceptableMatureStress = 2.0f;
-
-            seedEnergy = 3.0f;
-            saplingStartAge = 8f;
-            matureStartAge = 22f;
-            seedSpreadRadius = 150f;
-            seedSpreadCount = 1;
-            populationLimit = 400;
-        }
+        protected override float SeedToSaplingAge => 1f;
+        protected override float SaplingToMatureAge => 6f;
+        protected override float BaseSeedMortality => 0.275f;
+        protected override float BaseSaplingMortality => 0.05f;
+        protected override float BaseMatureMortality => 0.004f;
+        protected override float GrowthCoefficient => 0.9f;
+        protected override float MaxFecundityPerStrength => 0.45f;
+        protected override float DispersalScale => 50f;
     }
 
     public class BushDescriptor : RuntimeSpeciesDescriptor {
-        public BushDescriptor() {
-            // Теневой подлесок: выживает на остатках ресурсов
-            energyStressWeight = 0.5f;
-            requiredEnergy = 0.3f;
-            waterStressWeight = 0.5f;
-            requiredWater = 0.3f;
-
-            acceptableSeedStress = 1.5f;
-            acceptableSaplingStress = 1.5f;
-            acceptableMatureStress = 2.0f;
-
-            seedEnergy = 1.0f;
-            saplingStartAge = 2f;
-            matureStartAge = 8f;
-            seedSpreadRadius = 50f;
-            seedSpreadCount = 2;
-            populationLimit = 6000;
-        }
+        protected override float SeedToSaplingAge => 0.2f;
+        protected override float SaplingToMatureAge => 2f;
+        protected override float BaseSeedMortality => 0.25f;
+        protected override float BaseSaplingMortality => 0.10f;
+        protected override float BaseMatureMortality => 0.02f;
+        protected override float GrowthCoefficient => 1.5f;
+        protected override float MaxFecundityPerStrength => 1.5f;
+        protected override float DispersalScale => 50f;
     }
 }
