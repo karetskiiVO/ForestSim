@@ -238,6 +238,11 @@ namespace ProceduralVegetation {
         // TODO: make it possible to use multiple random generators with different seeds
         private static System.Random random = new(42);
         public static System.Random Random => random;
+
+        // Set the global random seed used by simulation for deterministic runs.
+        public static void SetRandomSeed(int seed) {
+            random = new System.Random(seed);
+        }
         private float currentTime;
 
         private PriorityQueue<Event, float> events = new();

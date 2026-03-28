@@ -53,27 +53,34 @@ namespace ProceduralVegetation {
     }
 
     public class RuntimeSpeciesDescriptor : TreeSpeciesCountDescriptor {
-        // Basic, configurable defaults for a runtime species.
-        // Subclasses can override behavior by overriding methods or changing these constants.
-        protected virtual float SeedToSaplingAge => 1f;
-        protected virtual float SaplingToMatureAge => 5f;
+        protected float SeedToSaplingAge = 1f;
+        protected float SaplingToMatureAge = 4f;
 
         // Mortality (annual) base rates by stage (lowered to reduce excessive mortality)
-        protected virtual float BaseSeedMortality => 0.3f;
-        protected virtual float BaseSaplingMortality => 0.06f;
-        protected virtual float BaseMatureMortality => 0.005f;
+        protected float BaseSeedMortality = 0.3f;
+        protected float BaseSaplingMortality = 0.06f;
+        protected float BaseMatureMortality = 0.005f;
+
+        // If species count is below or equal to this threshold, disable stochastic death (deterministic survival)
+        protected int DeterministicSurvivalThreshold = 2;
 
         // Growth / fecundity / dispersal tuning
         // Lowered defaults to avoid explosive yearly increases.
-        protected virtual float GrowthCoefficient => 0.7f; // converts available energy -> strength
+        protected float GrowthCoefficient = 0.7f; // converts available energy -> strength
         // Size-dependent slowdown: 1/(1 + beta*strength)
-        protected virtual float SizeModifierBeta => 0.4f;
+        protected float SizeModifierBeta = 0.4f;
         // Cap annual strength increase to avoid large jumps
-        protected virtual float MaxAnnualStrengthIncrease => 0.5f;
+        protected float MaxAnnualStrengthIncrease = 0.5f;
         // Energy cost factor per unit strength increase
-        protected virtual float EnergyCostFactor => 0.6f;
-        protected virtual float MaxFecundityPerStrength => 0.5f; // seeds per unit strength
-        protected virtual float DispersalScale => 50f; // characteristic dispersal distance (m)
+        protected float EnergyCostFactor = 0.6f;
+        protected float MaxFecundityPerStrength = 2.0f; // seeds per unit strength (increased)
+        protected float DispersalScale = 50f; // characteristic dispersal distance (m)
+        // Population threshold for reproduction (above this, trees stop producing seeds)
+        protected int ReproductionPopulationThreshold = 250;
+        // Sharpness of penalty: larger values make suppression stronger around threshold
+        protected float ReproductionPenaltySharpness = 3f;
+        // Minimum density factor to avoid completely zero fecundity
+        protected float ReproductionMinDensityFactor = 0.01f;
 
         public override void Grow(ref FoliageInstance instance) {
             // Advance age by one year (assumes Grow is called once per year).
@@ -112,6 +119,10 @@ namespace ProceduralVegetation {
         }
 
         public override bool Alive(in FoliageInstance instance) {
+            // Protect small populations: if species population is below threshold, prevent stochastic death.
+            if (this.Count <= DeterministicSurvivalThreshold) {
+                return true;
+            }
             // Compute base survival probability by life stage
             float baseSurvival = instance.type switch {
                 FoliageInstance.FoliageType.Seed => 1f - BaseSeedMortality,
@@ -162,8 +173,17 @@ namespace ProceduralVegetation {
         public override FoliageInstance[] Seed(ref FoliageInstance instance) {
             if (instance.type != FoliageInstance.FoliageType.Mature) return Array.Empty<FoliageInstance>();
 
-            // Number of seeds scales with strength (rounded down). Keep integer count modest.
-            int expected = Mathf.FloorToInt(Mathf.Clamp(instance.strength * MaxFecundityPerStrength, 0f, 50f));
+            // Density-dependent fecundity using a smooth penalty function (exponential decay)
+            int currentCount = this.Count;
+            float x = (float)currentCount / Mathf.Max(1f, (float)ReproductionPopulationThreshold);
+            float densityFactor = Mathf.Exp(-ReproductionPenaltySharpness * x);
+            densityFactor = Mathf.Clamp(densityFactor, ReproductionMinDensityFactor, 1f);
+
+            float fecundityFloat = instance.strength * MaxFecundityPerStrength * densityFactor;
+            int expected = Mathf.FloorToInt(Mathf.Clamp(fecundityFloat, 0f, 50f));
+
+            // If population is still low (below threshold) ensure at least one seed from mature trees
+            if (instance.type == FoliageInstance.FoliageType.Mature && expected == 0 && currentCount < ReproductionPopulationThreshold) expected = 1;
             if (expected <= 0) return Array.Empty<FoliageInstance>();
 
             var seeds = new FoliageInstance[expected];
@@ -184,76 +204,88 @@ namespace ProceduralVegetation {
                 position = position,
                 age = 0f,
                 stress = 0f,
-                // Initial energy for seeds (moderated)
-                energy = 0.12f + (float)(Simulation.Random.NextDouble() * 0.03f),
-                strength = 0f,
+                // Initial energy and small starting strength for seeds (improves establishment)
+                energy = 0.5f + (float)(Simulation.Random.NextDouble() * 0.1f),
+                strength = 0.05f,
                 type = FoliageInstance.FoliageType.Seed,
             };
         }
     }
 
     public class OakDescriptor : RuntimeSpeciesDescriptor {
-        protected override float SaplingToMatureAge => 6f;
-        protected override float BaseSeedMortality => 0.25f;
-        protected override float BaseSaplingMortality => 0.05f;
-        protected override float BaseMatureMortality => 0.005f;
-        protected override float GrowthCoefficient => 1.3f;
-        protected override float MaxFecundityPerStrength => 0.6f;
-        protected override float DispersalScale => 50f;
+        public OakDescriptor() {
+            SaplingToMatureAge = 6f;
+            BaseSeedMortality = 0.25f;
+            BaseSaplingMortality = 0.05f;
+            BaseMatureMortality = 0.005f;
+            GrowthCoefficient = 1.3f;
+            MaxFecundityPerStrength = 0.6f;
+            DispersalScale = 50f;
+        }
     }
 
     public class PineDescriptor : RuntimeSpeciesDescriptor {
-        protected override float SeedToSaplingAge => 0.5f;
-        protected override float SaplingToMatureAge => 4f;
-        protected override float BaseSeedMortality => 0.25f;
-        protected override float BaseSaplingMortality => 0.04f;
-        protected override float BaseMatureMortality => 0.004f;
-        protected override float GrowthCoefficient => 1.3f;
-        protected override float MaxFecundityPerStrength => 1.2f;
-        protected override float DispersalScale => 50f;
+        public PineDescriptor() {
+            SeedToSaplingAge = 0.5f;
+            SaplingToMatureAge = 4f;
+            BaseSeedMortality = 0.25f;
+            BaseSaplingMortality = 0.04f;
+            BaseMatureMortality = 0.004f;
+            GrowthCoefficient = 1.3f;
+            MaxFecundityPerStrength = 1.2f;
+            DispersalScale = 50f;
+        }
     }
 
     public class BirchDescriptor : RuntimeSpeciesDescriptor {
-        protected override float SeedToSaplingAge => 0.5f;
-        protected override float SaplingToMatureAge => 4f;
-        protected override float BaseSeedMortality => 0.3f;
-        protected override float BaseSaplingMortality => 0.055f;
-        protected override float BaseMatureMortality => 0.006f;
-        protected override float GrowthCoefficient => 1.2f;
-        protected override float MaxFecundityPerStrength => 0.8f;
-        protected override float DispersalScale => 50f;
+        public BirchDescriptor() {
+            SeedToSaplingAge = 0.5f;
+            SaplingToMatureAge = 4f;
+            BaseSeedMortality = 0.3f;
+            BaseSaplingMortality = 0.055f;
+            BaseMatureMortality = 0.006f;
+            GrowthCoefficient = 1.2f;
+            MaxFecundityPerStrength = 0.8f;
+            DispersalScale = 50f;
+        }
     }
 
     public class SpruceDescriptor : RuntimeSpeciesDescriptor {
-        protected override float SeedToSaplingAge => 1f;
-        protected override float SaplingToMatureAge => 7f;
-        protected override float BaseSeedMortality => 0.25f;
-        protected override float BaseSaplingMortality => 0.04f;
-        protected override float BaseMatureMortality => 0.004f;
-        protected override float GrowthCoefficient => 1.3f;
-        protected override float MaxFecundityPerStrength => 0.5f;
-        protected override float DispersalScale => 50f;
+        public SpruceDescriptor() {
+            SeedToSaplingAge = 0.5f;
+            SaplingToMatureAge = 5f;
+            BaseSeedMortality = 0.25f;
+            BaseSaplingMortality = 0.04f;
+            BaseMatureMortality = 0.004f;
+            GrowthCoefficient = 1.3f;
+            MaxFecundityPerStrength = 1.0f;
+            DispersalScale = 50f;
+        }
     }
 
     public class LindenDescriptor : RuntimeSpeciesDescriptor {
-        protected override float SeedToSaplingAge => 1f;
-        protected override float SaplingToMatureAge => 6f;
-        protected override float BaseSeedMortality => 0.25f;
-        protected override float BaseSaplingMortality => 0.04f;
-        protected override float BaseMatureMortality => 0.003f;
-        protected override float GrowthCoefficient => 1.3f;
-        protected override float MaxFecundityPerStrength => 0.45f;
-        protected override float DispersalScale => 50f;
+        public LindenDescriptor() {
+            SeedToSaplingAge = 0.5f;
+            SaplingToMatureAge = 4f;
+            BaseSeedMortality = 0.25f;
+            BaseSaplingMortality = 0.04f;
+            BaseMatureMortality = 0.005f;
+            GrowthCoefficient = 1.3f;
+            MaxFecundityPerStrength = 0.7f;
+            DispersalScale = 50f;
+        }
     }
 
     public class BushDescriptor : RuntimeSpeciesDescriptor {
-        protected override float SeedToSaplingAge => 0.2f;
-        protected override float SaplingToMatureAge => 2f;
-        protected override float BaseSeedMortality => 0.2f;
-        protected override float BaseSaplingMortality => 0.05f;
-        protected override float BaseMatureMortality => 0.01f;
-        protected override float GrowthCoefficient => 1.5f;
-        protected override float MaxFecundityPerStrength => 1.5f;
-        protected override float DispersalScale => 50f;
+        public BushDescriptor() {
+            SeedToSaplingAge = 0.2f;
+            SaplingToMatureAge = 2f;
+            BaseSeedMortality = 0.2f;
+            BaseSaplingMortality = 0.05f;
+            BaseMatureMortality = 0.01f;
+            GrowthCoefficient = 1.5f;
+            MaxFecundityPerStrength = 1.5f;
+            DispersalScale = 50f;
+        }
     }
 }

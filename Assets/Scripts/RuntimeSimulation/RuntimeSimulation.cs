@@ -32,10 +32,16 @@ class RuntimeSimulation : MonoBehaviour {
     [SerializeField]
     int fruitfulnessNoiseSeed = 1337;
 
+    [SerializeField]
+    int simulationRandomSeed = 42;
+
     List<TreeSpeciesCountDescriptor> descriptors;
 
     private void Start() {
         descriptors ??= new();
+
+        // Ensure simulation RNG is deterministic according to configured seed
+        Simulation.SetRandomSeed(simulationRandomSeed);
 
         var landscape = new AdvancedMountainLandscapeDescriptor() {
             bbox = new Bounds(new Vector3(0, 0, 0), new Vector3(500, 21, 500)),
