@@ -35,6 +35,11 @@ class RuntimeSimulation : MonoBehaviour {
     [SerializeField]
     int simulationRandomSeed = 42;
 
+    [SerializeField]
+    Material landscapeMaterial;
+    [SerializeField]
+    GameObject grassPrefab;
+
     List<TreeSpeciesCountDescriptor> descriptors;
 
     private void Start() {
@@ -59,6 +64,7 @@ class RuntimeSimulation : MonoBehaviour {
                 fruitfulnessMap = fruitfulnessMap,
                 fruitfulnessScale = 0.05f,
             })
+            .SetDeadPointsBufferCapacity(128)
             .GenerateWaterAuto(1000, 0.1f, 1f, 0.002f)
             .AddEventGenerator(new TreeSpeciesCountDescriptor.TreeSpeciesCounterEventGenerator())
             .AddEventGenerator(new EnergyLoggerEventGenerator());
@@ -152,7 +158,7 @@ class RuntimeSimulation : MonoBehaviour {
             return;
         }
 
-        foreach (var point in simulation.GetPointsView()) {
+        foreach (var point in simulation.GetPointsView().Concat(simulation.GetDeadPointsView())) {
             float h = bakedLandscape.Height(point.position);
             if (float.IsNaN(h)) {
                 continue;
@@ -206,9 +212,6 @@ class RuntimeSimulation : MonoBehaviour {
         int tileRes = NextValidTerrainResolution(MAX_TILE_RES);
 
         Texture2D moistureDebugTexture = null;
-        Color[] moistureDebugPixels = null;
-        int moistureDebugWidth = 0;
-        int moistureDebugHeight = 0;
 
         GameObject terrainParent;
         if (parent != null) {
@@ -269,19 +272,6 @@ class RuntimeSimulation : MonoBehaviour {
                 };
                 terrainData.SetHeights(0, 0, heights);
 
-                if (moistureDebugPixels != null) {
-                    ApplyMoistureDebugOverlay(
-                        terrainData,
-                        pixX0,
-                        pixZ0,
-                        tilePixW,
-                        tilePixH,
-                        moistureDebugPixels,
-                        moistureDebugWidth,
-                        moistureDebugHeight
-                    );
-                }
-
                 var go = Terrain.CreateTerrainGameObject(terrainData);
                 go.name = $"TerrainTile_{tx}_{tz}";
                 go.transform.SetParent(terrainParent.transform);
@@ -289,6 +279,10 @@ class RuntimeSimulation : MonoBehaviour {
                 float originX = bakedLandscape.bbox.center.x - worldSizeX * 0.5f + pixX0 * bakedLandscape.texelSize.x;
                 float originZ = bakedLandscape.bbox.center.z - worldSizeZ * 0.5f + pixZ0 * bakedLandscape.texelSize.y;
                 go.transform.position = new Vector3(originX, bakedLandscape.minHeight, originZ);
+                var lv = go.AddComponent<LandscapeVisualiser>();
+                lv.landscapeMaterial = landscapeMaterial;
+                lv.instanceMesh = grassPrefab?.GetComponent<MeshFilter>()?.sharedMesh;
+                lv.instanceMaterial = grassPrefab?.GetComponent<Renderer>()?.sharedMaterial;
             }
         }
 
@@ -311,54 +305,6 @@ class RuntimeSimulation : MonoBehaviour {
 
         wetGradient.SetKeys(colorKeys, alphaKeys);
         return wetGradient;
-    }
-
-    private static void ApplyMoistureDebugOverlay(
-        TerrainData terrainData,
-        int pixX0,
-        int pixZ0,
-        int tilePixW,
-        int tilePixH,
-        Color[] moistureDebugPixels,
-        int moistureDebugWidth,
-        int moistureDebugHeight
-    ) {
-        var tileTexture = new Texture2D(tilePixW, tilePixH, TextureFormat.RGBA32, false) {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-        };
-
-        var tileColors = new Color[tilePixW * tilePixH];
-        for (int y = 0; y < tilePixH; y++) {
-            int srcY = Mathf.Clamp(pixZ0 + y, 0, moistureDebugHeight - 1);
-            int srcRow = srcY * moistureDebugWidth;
-            int dstRow = y * tilePixW;
-
-            for (int x = 0; x < tilePixW; x++) {
-                int srcX = Mathf.Clamp(pixX0 + x, 0, moistureDebugWidth - 1);
-                tileColors[dstRow + x] = moistureDebugPixels[srcRow + srcX];
-            }
-        }
-
-        tileTexture.SetPixels(tileColors);
-        tileTexture.Apply(false, false);
-
-        var textureLayer = new TerrainLayer {
-            diffuseTexture = tileTexture,
-            normalMapTexture = null,
-            tileSize = new Vector2(terrainData.size.x, terrainData.size.z),
-        };
-
-        terrainData.terrainLayers = new TerrainLayer[] { textureLayer };
-
-        float[,,] alphamap = new float[terrainData.alphamapWidth, terrainData.alphamapHeight, 1];
-        for (int x = 0; x < terrainData.alphamapWidth; x++) {
-            for (int y = 0; y < terrainData.alphamapHeight; y++) {
-                alphamap[x, y, 0] = 1f;
-            }
-        }
-
-        terrainData.SetAlphamaps(0, 0, alphamap);
     }
 }
 

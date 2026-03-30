@@ -16,10 +16,6 @@ public class BushSpeciesContainer : PrefabSpeciesContainerBase {
         return new BushDescriptor();
     }
 
-    protected override GameObject ResolvePrefab(FoliageInstance.FoliageType type, int hash) {
-        return base.ResolvePrefab(FoliageInstance.FoliageType.Mature, hash);
-    }
-
     protected override void ApplyTransform(Simulation.SimulationPointView point, int pointHash, Transform instanceTransform) {
         Vector2 range = point.type switch {
             FoliageInstance.FoliageType.Seed => bushSeedScaleRange,

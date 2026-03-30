@@ -81,6 +81,8 @@ namespace ProceduralVegetation {
         protected float ReproductionPenaltySharpness = 3f;
         // Minimum density factor to avoid completely zero fecundity
         protected float ReproductionMinDensityFactor = 0.01f;
+        // Maximum number of seeds a single tree can produce per year (species can override)
+        protected int MaxSeedsPerTree = 50;
 
         public override void Grow(ref FoliageInstance instance) {
             // Advance age by one year (assumes Grow is called once per year).
@@ -180,7 +182,7 @@ namespace ProceduralVegetation {
             densityFactor = Mathf.Clamp(densityFactor, ReproductionMinDensityFactor, 1f);
 
             float fecundityFloat = instance.strength * MaxFecundityPerStrength * densityFactor;
-            int expected = Mathf.FloorToInt(Mathf.Clamp(fecundityFloat, 0f, 50f));
+            int expected = Mathf.FloorToInt(Mathf.Clamp(fecundityFloat, 0f, (float)MaxSeedsPerTree));
 
             // If population is still low (below threshold) ensure at least one seed from mature trees
             if (instance.type == FoliageInstance.FoliageType.Mature && expected == 0 && currentCount < ReproductionPopulationThreshold) expected = 1;
@@ -219,8 +221,14 @@ namespace ProceduralVegetation {
             BaseSaplingMortality = 0.05f;
             BaseMatureMortality = 0.005f;
             GrowthCoefficient = 1.3f;
-            MaxFecundityPerStrength = 0.6f;
-            DispersalScale = 50f;
+            // Reduce oak fecundity and dispersal to slow aggressive spread
+            MaxFecundityPerStrength = 0.25f;
+            DispersalScale = 20f;
+            // Make density-dependent suppression stronger and act earlier
+            ReproductionPopulationThreshold = 150;
+            ReproductionPenaltySharpness = 4f;
+            // Strong per-tree cap on seeds for oak
+            MaxSeedsPerTree = 8;
         }
     }
 
