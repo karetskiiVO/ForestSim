@@ -1,0 +1,40 @@
+#pragma kernel IntegrateAllCells
+
+Texture2D<float> FruitfulnessMap;
+Texture2D<float> CellIndexMap;
+RWStructuredBuffer<uint> CellIntegrals;
+
+int MapWidth;
+int MapHeight;
+int CellCount;
+
+float TexelArea;
+int FixedPointScale;
+
+[numthreads(8, 8, 1)]
+void IntegrateAllCells(uint3 id : SV_DispatchThreadID) {
+    int tx = id.x;
+    int ty = id.y;
+
+    if (tx >= MapWidth || ty >= MapHeight) {
+        return;
+    }
+
+    float fruit = max(0.0, FruitfulnessMap.Load(int3(tx, ty, 0)));
+    if (fruit <= 0.0) {
+        return;
+    }
+
+    int cellIndex = (int)round(CellIndexMap.Load(int3(tx, ty, 0))) - 1;
+    if (cellIndex < 0 || cellIndex >= CellCount) {
+        return;
+    }
+
+    float contribution = fruit * TexelArea;
+    uint fixedContribution = (uint)max(0.0, round(contribution * FixedPointScale));
+    if (fixedContribution == 0u) {
+        return;
+    }
+
+    InterlockedAdd(CellIntegrals[cellIndex], fixedContribution);
+}

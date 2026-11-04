@@ -1,15 +1,18 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 
 using UnityEngine;
 
 namespace ProceduralVegetation {
-    public interface ILandscapeDescriptor {
+    // Описывает террайн
+    public abstract class LandscapeDescriptor {
         [Serializable]
         public class BakeParams {
             public Vector2Int resolution;
         }
 
-        public BakedLandscape Bake(BakeParams bakeParams) {
+        public virtual BakedLandscape Bake(BakeParams bakeParams) {
             var heightmap = new Texture2D(
                 bakeParams.resolution.x,
                 bakeParams.resolution.y,
@@ -58,21 +61,54 @@ namespace ProceduralVegetation {
             return new BakedLandscape {
                 heightmap = heightmap,
                 texelSize = texelSize,
-                center = bbox.center,
+                bbox = bbox,
                 minHeight = minH,
                 maxHeight = maxH,
-                lat = latitude
             };
         }
 
         // Границы местности
-        public UnityEngine.Bounds bbox { get; }
+        public Bounds bbox;
 
-        public float Height(UnityEngine.Vector2 lpos);
+        public abstract float Height(Vector2 lpos);
 
-        public float NANStrategy(UnityEngine.Vector2 lpos) => 0;
+        public virtual float NANStrategy(Vector2 lpos) => 0;
+    }
 
-        public Utilities.Latitude latitude { get; }
+    public class LanscapeFruitfillness {
+        public Texture2D fruitfulnessMap;
+        public float fruitfulnessScale = 1f;
+    }
+
+    public class LanscapeWater {
+        public Texture2D waterMap;
+        public float waterScale = 1f;
+    }
+
+    public class LanscapeLighting {
+        public Texture2D lightMap;
+        public float lightScale = 1f;
+    }
+
+    public abstract class Scatter : IEnumerable<Vector2> {
+        public abstract Vector2? Next();
+        public abstract void Reset();
+
+        public Bounds bbox;
+
+        // Rust-style hint относительно количества точек
+        public virtual long? countHint { get => null; }
+
+        public IEnumerator<Vector2> GetEnumerator() {
+            Vector2? value;
+            while ((value = Next()).HasValue) {
+                yield return value.Value;
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return GetEnumerator();
+        }
     }
 
     public interface ISimulated {

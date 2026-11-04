@@ -1,0 +1,367 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-7219765461014592189
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b0c0f0cc97429447bc30f4574a3eeb9, type: 3}
+  m_Name: BBOX Parameters
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: -552, y: 200}
+  ports:
+    keys:
+    - bbox
+    values:
+    - _fieldName: bbox
+      _node: {fileID: -7219765461014592189}
+      _typeQualifiedName: UnityEngine.Bounds, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: bounds
+        node: {fileID: -2724086386251585526}
+        reroutePoints: []
+      - fieldName: bbox
+        node: {fileID: 2946724455518475506}
+        reroutePoints: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+  bbox:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 500, y: 57.8, z: 500}
+  center: {x: 0, y: 0, z: 0}
+  extents: {x: 500, y: 57.8, z: 500}
+--- !u!114 &-4005195196866629141
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab4519baa02fdae49b50436cfdb8fb9f, type: 3}
+  m_Name: Bake Parameters
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: -456, y: 56}
+  ports:
+    keys:
+    - bakeParams
+    values:
+    - _fieldName: bakeParams
+      _node: {fileID: -4005195196866629141}
+      _typeQualifiedName: ProceduralVegetation.LandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
+        Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: bakeParams
+        node: {fileID: -2724086386251585526}
+        reroutePoints: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+  bakeParams:
+    resolution: {x: 1800, y: 1800}
+  resolution: {x: 1800, y: 1800}
+--- !u!114 &-2724086386251585526
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a095e6026649bc4e88d66add961389d, type: 3}
+  m_Name: Ridged Noise Landscape
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: -120, y: 72}
+  ports:
+    keys:
+    - bakeParams
+    - landscape
+    - bounds
+    values:
+    - _fieldName: bakeParams
+      _node: {fileID: -2724086386251585526}
+      _typeQualifiedName: ProceduralVegetation.LandscapeDescriptor+BakeParams, Assembly-CSharp-firstpass,
+        Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: bakeParams
+        node: {fileID: -4005195196866629141}
+        reroutePoints: []
+      _direction: 0
+      _connectionType: 1
+      _typeConstraint: 2
+      _dynamic: 0
+    - _fieldName: landscape
+      _node: {fileID: -2724086386251585526}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[ProceduralVegetation.BakedLandscape,
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: inLandscape
+        node: {fileID: 5310409558252951230}
+        reroutePoints: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+    - _fieldName: bounds
+      _node: {fileID: -2724086386251585526}
+      _typeQualifiedName: UnityEngine.Bounds, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: bbox
+        node: {fileID: -7219765461014592189}
+        reroutePoints: []
+      _direction: 0
+      _connectionType: 1
+      _typeConstraint: 2
+      _dynamic: 0
+  bakeParams:
+    resolution: {x: 0, y: 0}
+  bounds:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
+  offset: {x: 0, y: 0}
+  octaves: 9
+  lacunarity: 0.5
+  persistence: 0.74
+  sharpness: 2
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7b94baf0594c834986cdb819f8e6301, type: 3}
+  m_Name: ProceduralFoliage
+  m_EditorClassIdentifier: 
+  nodes:
+  - {fileID: -4005195196866629141}
+  - {fileID: -2724086386251585526}
+  - {fileID: 5310409558252951230}
+  - {fileID: 147977691452944755}
+  - {fileID: -7219765461014592189}
+  - {fileID: 2946724455518475506}
+  - {fileID: 2789213935930997297}
+--- !u!114 &147977691452944755
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38f7a3afa0089b44687ce64c9de6e4c1, type: 3}
+  m_Name: Visualisation
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: 616, y: 104}
+  ports:
+    keys:
+    - landscape
+    values:
+    - _fieldName: landscape
+      _node: {fileID: 147977691452944755}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[ProceduralVegetation.BakedLandscape,
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: outLandscape
+        node: {fileID: 5310409558252951230}
+        reroutePoints: []
+      _direction: 0
+      _connectionType: 1
+      _typeConstraint: 2
+      _dynamic: 0
+  parent: {fileID: 0}
+  terrainMaterial: {fileID: 2100000, guid: 90deeb50f8e15a5438fd9379f8c18742, type: 2}
+--- !u!114 &2789213935930997297
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: Scatter Visualisation
+  m_EditorClassIdentifier: Assembly-CSharp-Editor-firstpass:ProceduralVegetation.Editor.Nodes:ScatterVisualisationNode
+  graph: {fileID: 11400000}
+  position: {x: 632, y: 248}
+  ports:
+    keys:
+    - landscape
+    - points
+    values:
+    - _fieldName: landscape
+      _node: {fileID: 2789213935930997297}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[ProceduralVegetation.BakedLandscape,
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: outLandscape
+        node: {fileID: 5310409558252951230}
+        reroutePoints: []
+      _direction: 0
+      _connectionType: 1
+      _typeConstraint: 2
+      _dynamic: 0
+    - _fieldName: points
+      _node: {fileID: 2789213935930997297}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[UnityEngine.Vector2[],
+        UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: outPoints
+        node: {fileID: 5310409558252951230}
+        reroutePoints: []
+      _direction: 0
+      _connectionType: 1
+      _typeConstraint: 2
+      _dynamic: 0
+  color: {r: 0, g: 0, b: 0, a: 0}
+  parent: {fileID: 0}
+  drawable: {fileID: 0}
+--- !u!114 &2946724455518475506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ed17f3a3db7b374ea8c64b9edc8af93, type: 3}
+  m_Name: Random Scatter
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: -104, y: 296}
+  ports:
+    keys:
+    - bbox
+    - points
+    values:
+    - _fieldName: bbox
+      _node: {fileID: 2946724455518475506}
+      _typeQualifiedName: UnityEngine.Bounds, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: bbox
+        node: {fileID: -7219765461014592189}
+        reroutePoints: []
+      _direction: 0
+      _connectionType: 1
+      _typeConstraint: 2
+      _dynamic: 0
+    - _fieldName: points
+      _node: {fileID: 2946724455518475506}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[UnityEngine.Vector2[],
+        UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: inPoints
+        node: {fileID: 5310409558252951230}
+        reroutePoints: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+  bbox:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
+  count: 100
+  seed: 42
+--- !u!114 &5310409558252951230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da537e25018bf954a880ce8d3aedb11b, type: 3}
+  m_Name: Simulation
+  m_EditorClassIdentifier: 
+  graph: {fileID: 11400000}
+  position: {x: 264, y: 88}
+  ports:
+    keys:
+    - inLandscape
+    - outLandscape
+    - outPoints
+    - inPoints
+    values:
+    - _fieldName: inLandscape
+      _node: {fileID: 5310409558252951230}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[ProceduralVegetation.BakedLandscape,
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: landscape
+        node: {fileID: -2724086386251585526}
+        reroutePoints: []
+      _direction: 0
+      _connectionType: 1
+      _typeConstraint: 2
+      _dynamic: 0
+    - _fieldName: outLandscape
+      _node: {fileID: 5310409558252951230}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[ProceduralVegetation.BakedLandscape,
+        Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: landscape
+        node: {fileID: 147977691452944755}
+        reroutePoints: []
+      - fieldName: landscape
+        node: {fileID: 2789213935930997297}
+        reroutePoints: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+    - _fieldName: outPoints
+      _node: {fileID: 5310409558252951230}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[UnityEngine.Vector2[],
+        UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: points
+        node: {fileID: 2789213935930997297}
+        reroutePoints: []
+      _direction: 1
+      _connectionType: 0
+      _typeConstraint: 0
+      _dynamic: 0
+    - _fieldName: inPoints
+      _node: {fileID: 5310409558252951230}
+      _typeQualifiedName: ProceduralVegetation.Editor.Descriptor`1[[UnityEngine.Vector2[],
+        UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]],
+        Assembly-CSharp-Editor-firstpass, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+      connections:
+      - fieldName: points
+        node: {fileID: 2946724455518475506}
+        reroutePoints: []
+      _direction: 0
+      _connectionType: 1
+      _typeConstraint: 2
+      _dynamic: 0
+  simulationTime: 40

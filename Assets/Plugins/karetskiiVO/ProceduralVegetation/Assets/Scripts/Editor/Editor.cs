@@ -18,7 +18,7 @@ namespace ProceduralVegetation.Editor {
 
             nodes
                 .FilterCast<EditorNode>()
-                .ForEach(node => node.Evaluate());
+                .ForEach(node => node.GraphCalc());
 
             nodes
                 .FilterCast<ISimulated>()

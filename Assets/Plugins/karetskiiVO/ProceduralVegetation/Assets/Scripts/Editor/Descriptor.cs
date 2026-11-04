@@ -2,7 +2,7 @@ using System;
 
 namespace ProceduralVegetation.Editor {
     [Serializable]
-    public struct Descriptor<DescriptorType> {
+    public class Descriptor<DescriptorType> {
         [NonSerialized]
         public DescriptorType descriptor;
     }

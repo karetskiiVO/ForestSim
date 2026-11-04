@@ -34,8 +34,6 @@ namespace ProceduralVegetation.Editor.Nodes {
 
         // Reduce boilerplate do not
         public void GraphCalc() {
-            Debug.Log($"{GetType()} {Inputs.Select(port => port.node).FilterCast<Node, EditorNode>().Count()}");
-
             if (state == State.InProgress) {    // цикл
                 throw new OverflowException("cyclic graph");
             }
@@ -45,8 +43,10 @@ namespace ProceduralVegetation.Editor.Nodes {
 
 
             Inputs
-                .Select(port => port.node)
+                .SelectMany(port => port.GetConnections())
+                .Select(connectedPort => connectedPort.node)
                 .FilterCast<Node, EditorNode>()
+                .Distinct()
                 .ForEach(node => node.GraphCalc());
 
             Evaluate();
@@ -54,6 +54,6 @@ namespace ProceduralVegetation.Editor.Nodes {
             state = State.Done;
         }
 
-        public abstract void Evaluate();
+        public virtual void Evaluate() { }
     }
 }

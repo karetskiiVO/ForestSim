@@ -1,0 +1,66 @@
+#pragma kernel CSMain
+
+Texture2D<float4> _HeightTex;
+SamplerState sampler_LinearClamp;
+
+// Append buffer: pos.xyz + scale in w
+AppendStructuredBuffer<float4> appendBuffer;
+
+float _SlopeStart;
+float _SlopeEnd;
+float3 _TerrainWorldSize;   // terrain size (x=width, y=height, z=depth) в world units
+float3 _TerrainOffset;      // world-space origin (terrain.transform.position)
+int _Resolution;            // разрешение, соответствующее dispatch (т.е. width/height для проб)
+int _MaxInstances;
+float _DensityThreshold;    // опционально: порог маски для записи
+float _MinScale;
+float _MaxScale;
+
+[numthreads(8,8,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    uint width = _Resolution;
+    uint height = _Resolution;
+    if (id.x >= width || id.y >= height) return;
+    float2 uv = (float2(id.x + 0.5, id.y + 0.5) / float2(width, height));
+    float2 texel = 1.0 / float2(width, height);
+
+    float hC = _HeightTex.SampleLevel(sampler_LinearClamp, uv, 0).r;
+    float hL = _HeightTex.SampleLevel(sampler_LinearClamp, uv - float2(texel.x, 0), 0).r;
+    float hR = _HeightTex.SampleLevel(sampler_LinearClamp, uv + float2(texel.x, 0), 0).r;
+    float hD = _HeightTex.SampleLevel(sampler_LinearClamp, uv - float2(0, texel.y), 0).r;
+    float hU = _HeightTex.SampleLevel(sampler_LinearClamp, uv + float2(0, texel.y), 0).r;
+
+    float dhdx = (hR - hL) * 0.5;
+    float dhdy = (hU - hD) * 0.5;
+
+    float3 n = normalize(float3(-dhdx, 1.0, -dhdy));
+
+    float slope = saturate(1.0 - dot(n, float3(0,1,0)));
+    float t = smoothstep(_SlopeStart, _SlopeEnd, slope);
+    float grassMask = 1.0 - t; // 1 = grass, 0 = dirt
+
+    // Можно использовать случай/шум, чтобы разреживать траву (опционально)
+    // float rnd = frac(sin(dot(uv ,float2(12.9898,78.233))) * 43758.5453);
+
+    if (grassMask <= _DensityThreshold) return;
+
+    // Вычисляем world-позицию для данной UV и высоты
+    float worldX = _TerrainOffset.x + uv.x * _TerrainWorldSize.x;
+    float worldZ = _TerrainOffset.z + uv.y * _TerrainWorldSize.z;
+    float worldY = _TerrainOffset.y + hC * _TerrainWorldSize.y;
+
+    // случайный масштаб между min и max (можно убрать)
+    uint seed = id.x * 73856093u ^ id.y * 19349663u;
+    float rnd = frac(sin(seed) * 43758.5453);
+    float scale = lerp(_MinScale, _MaxScale, rnd);
+
+    float4 instance;
+    instance.x = worldX;
+    instance.y = worldY;
+    instance.z = worldZ;
+    instance.w = scale;
+
+    // append одной записью (atomic внутри AppendStructuredBuffer)
+    appendBuffer.Append(instance);
+}

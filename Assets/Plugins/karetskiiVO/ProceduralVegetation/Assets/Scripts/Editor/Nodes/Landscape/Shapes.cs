@@ -1,15 +1,17 @@
 using System;
 
-using XNode;
+using UnityEngine;
 
 namespace ProceduralVegetation.Editor.Nodes {
     [Serializable]
-    [CreateNodeMenu("landscape/cone")]
+    [CreateNodeMenu("Landscape/Shapes/Cone")]
     [NodeWidth(304)]
-    class ConeLandscapeNode : CoreLandscapeNode {
+    class ConeLandscapeNode : BaseLandscapeNode {
+        [Input(connectionType = ConnectionType.Override, typeConstraint = TypeConstraint.Strict)]
+        public Bounds bounds;
         public ConeLandscapeDescriptor descriptor;
 
-        public override ILandscapeDescriptor GetLandscapeDescriptor() {
+        public override LandscapeDescriptor GetLandscapeDescriptor() {
             return descriptor;
         }
     }

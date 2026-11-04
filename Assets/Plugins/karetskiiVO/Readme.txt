@@ -1,1 +1,0 @@
-Require "com.github.siccity.xnode": "https://github.com/siccity/xNode.git"
